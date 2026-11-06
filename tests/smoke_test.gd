@@ -304,7 +304,12 @@ func run(world: World, ui: GameUI) -> void:
 	var staff_before := {}
 	for n in world._staff_root.get_children():
 		staff_before[n] = n.global_position
-	await get_tree().create_timer(9.0).timeout
+	for x in world._life._animals:  # que echen a andar hacia otro punto de su zona
+		if x["half"] != Vector2.ZERO:
+			x["state"] = "walk"
+			x["target"] = x["center"] + Vector3(x["half"].x * 0.8, 0, x["half"].y * 0.8)
+			x["timer"] = 6.0
+	await get_tree().create_timer(3.0).timeout
 	var moved := before_pos.keys().filter(func(n: Node3D) -> bool: return is_instance_valid(n) and n.global_position.distance_to(before_pos[n]) > 0.1)
 	var staff_moved := staff_before.keys().filter(func(n: Node3D) -> bool: return is_instance_valid(n) and n.global_position.distance_to(staff_before[n]) > 0.1)
 	_check(moved.size() >= 1, "los animales del refugio deberían moverse (%d de %d)" % [moved.size(), before_pos.size()])
@@ -368,6 +373,63 @@ func run(world: World, ui: GameUI) -> void:
 		if bs["id"] == "establo":
 			est = Game.s["land_pos"] + bs["pos"]
 	_check(horse_node != null and est != Vector3.INF and horse_node.global_position.distance_to(est) < 3.5, "el caballo debería estar en el establo")
+
+	# --- Seguimiento post-adopción ---
+	var make_ready := func(sp: String) -> Dictionary:
+		var x := Game._make_animal({"species": sp, "size": "mediano" if sp == "perro" else ""})
+		for k in ["reviewed", "vaccinated", "dewormed"]:
+			x[k] = true
+		x["chip"] = "nuestro"
+		x["sick"] = false
+		x["injured"] = false
+		x["energy"] = "tranquilo"
+		x["location"] = "refugio"
+		Game.s["animals"].append(x)
+		return x
+	Game.s["minute"] = 10 * 60
+	# 1) Va bien: la llamada suma reputación una vez.
+	var happy: Dictionary = make_ready.call("perro")
+	Game.s["requests"].append({"id": 9101, "who": "Familia Ruiz", "species": "perro", "size": "mediano", "energy": "tranquilo",
+		"home": "casa con jardín", "state": "esperando", "visit_at": 0, "wait_until": Game.now_abs() + 300, "look": 1, "suspect": ""})
+	Game.adopt(9101, happy["id"])
+	for r in Game.s["returns"].duplicate():
+		if r["animal"]["id"] == happy["id"]:
+			Game.s["returns"].erase(r)
+	var fh: Dictionary = Game.s["followups"].filter(func(f: Dictionary) -> bool: return f["animal_id"] == happy["id"])[0]
+	_check(Game.followup_status(fh) == "bien", "la adopción buena debería ir bien")
+	var rep_b: int = Game.s["reputation"]
+	Game.followup_call(fh["id"])
+	_check(Game.s["reputation"] >= mini(100, rep_b + 1) or rep_b == 100, "llamar a una familia contenta debería mejorar la reputación")
+	# 2) Va a fracasar: la llamada lo detecta y recuperar al animal funciona.
+	var shaky: Dictionary = make_ready.call("perro")
+	Game.s["requests"].append({"id": 9102, "who": "Pareja joven", "species": "perro", "size": "mediano", "energy": "tranquilo",
+		"home": "piso pequeño", "state": "esperando", "visit_at": 0, "wait_until": Game.now_abs() + 300, "look": 2, "suspect": ""})
+	Game.adopt(9102, shaky["id"])
+	if Game._pending_return(shaky["id"]).is_empty():
+		Game.s["returns"].append({"animal": shaky, "day": Game.s["day"] + 5, "reason": "Ladra demasiado", "who": "Pareja joven"})
+	var fs: Dictionary = Game.s["followups"].filter(func(f: Dictionary) -> bool: return f["animal_id"] == shaky["id"])[0]
+	_check(Game.followup_call(fs["id"])["status"] == "devolucion", "la llamada debería detectar que la adopción va mal")
+	var fd := Dialogues.talk("seguimiento_llamar_%d" % fs["id"])
+	_check(fd["options"].any(func(o: Array) -> bool: return "consejos" in o[0]), "debería poder darles consejos")
+	# 3) Cazador: la llamada da largas; la visita destapa la verdad y se puede recuperar y denunciar.
+	var hound: Dictionary = make_ready.call("perro")
+	Game.s["requests"].append({"id": 9103, "who": "Señor Martín", "species": "perro", "size": "mediano", "energy": "tranquilo",
+		"home": "casa de campo", "state": "esperando", "visit_at": 0, "wait_until": Game.now_abs() + 300, "look": 3, "suspect": "cazador"})
+	Game.adopt(9103, hound["id"])
+	var fc: Dictionary = Game.s["followups"].filter(func(f: Dictionary) -> bool: return f["animal_id"] == hound["id"])[0]
+	_check("dejar" in Game.followup_call(fc["id"])["text"], "el cazador debería dar largas por teléfono")
+	Game.s["minute"] = 10 * 60
+	var vis := Game.followup_visit(fc["id"])
+	_check(vis["status"] == "cazador" and "cercado" in vis["text"], "la visita debería destapar al cazador (%s)" % vis.get("text", ""))
+	var den0: int = Game.s["stats"]["denuncias"]
+	Game.followup_reclaim(fc["id"], true)
+	_check(Game.animal(hound["id"]).get("location", "") == "refugio", "el perro debería volver al refugio")
+	_check(Game._pending_consequence(hound["id"]).is_empty(), "la consecuencia debería evitarse")
+	_check(Game.s["stats"]["denuncias"] == den0 + 1, "debería registrarse la denuncia")
+	ui._tab = GameUI.TABS.find("Adopciones")
+	ui.open_panel("tablet")
+	await _frames(1)
+	ui.close_panel()
 
 	# --- Simulación larga: 200 días con decisiones sencillas ---
 	Game.s["money"] = 50000

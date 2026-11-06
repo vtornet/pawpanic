@@ -29,6 +29,9 @@ static func talk(id: String) -> Dictionary:
 		return _staff(id)
 	if id.begins_with("adoptante_"):
 		return _adopter(int(id.get_slice("_", 1)))
+	if id.begins_with("seguimiento_"):
+		var parts := id.split("_")  # seguimiento_<llamar|visitar>_<id>
+		return _followup(parts[1], int(parts[2]))
 	if id.begins_with("vecino_"):
 		return _neighbor(int(id.get_slice("_", 1)))
 	if id.begins_with("visita_"):
@@ -237,6 +240,34 @@ static func _adopter(request_id: int) -> Dictionary:
 		return {"text": Game.send_visitor_home(request_id), "options": [["Adiós", ""]]}])
 	options.append(["Un momento, ahora vuelvo", ""])
 	return {"text": text, "options": options, "who": rq["who"]}
+
+
+## Seguimiento post-adopción: llamada o visita, y qué hacer según lo que se encuentra.
+static func _followup(kind: String, fid: int) -> Dictionary:
+	var f := Game._find_id(Game.s["followups"], fid)
+	if f.is_empty():
+		return {"text": "...", "options": [["Cerrar", ""]]}
+	var res: Dictionary = Game.followup_call(fid) if kind == "llamar" else Game.followup_visit(fid)
+	var who := "Seguimiento · %s (%s)" % [f["who"], f["name"]]
+	var opts: Array = []
+	var st: String = res.get("status", "")
+	if st == "devolucion":
+		opts.append(["Darles consejos", func() -> Dictionary:
+			return {"text": Game.followup_advise(fid, kind == "visitar"), "options": [["Cerrar", ""]], "who": who}])
+		if kind == "visitar":
+			opts.append(["Llevarte a %s de vuelta al refugio" % f["name"], func() -> Dictionary:
+				return {"text": Game.followup_reclaim(fid, false), "options": [["Cerrar", ""]], "who": who}])
+	elif st in ["cazador", "guarda", "criador", "regalo", "acumulador"] and kind == "visitar":
+		opts.append(["Recuperar a %s (cláusula del contrato)" % f["name"], func() -> Dictionary:
+			return {"text": Game.followup_reclaim(fid, false), "options": [["Cerrar", ""]], "who": who}])
+		if st in ["cazador", "guarda", "acumulador"]:
+			opts.append(["Recuperarlo y denunciar en el SEPRONA", func() -> Dictionary:
+				return {"text": Game.followup_reclaim(fid, true), "options": [["Cerrar", ""]], "who": who}])
+	elif st in ["cazador", "guarda", "criador", "regalo", "acumulador"]:
+		opts.append(["Algo no cuadra: ir a visitarles (1 h 30 min)", func() -> Dictionary:
+			return _followup("visitar", fid)])
+	opts.append(["Cerrar", ""])
+	return {"text": res.get("text", "..."), "options": opts, "who": who}
 
 
 ## Vecinos del pueblo: charla, pistas sobre animales sueltos y algún donativo.

@@ -80,6 +80,7 @@ func new_game() -> void:
 		"returns": [],          # {animal, day}
 		"consequences": [],     # adopciones a quien no debía: {type, animal, day}
 		"visits": [],           # dueños que recogen y familias que devuelven, en persona
+		"followups": [],        # seguimiento de las adopciones recientes
 		"next_id": 1,
 		"fed_today": false,
 		"forwarded_today": 0,
@@ -522,6 +523,7 @@ func end_day() -> void:
 	for r in s["returns"].duplicate():
 		if r["day"] <= s["day"]:
 			s["returns"].erase(r)
+			_close_followup(r["animal"]["id"])
 			var v := _schedule_return(r["animal"], r["reason"], r.get("who", "La familia adoptante"))
 			lines.append("↩ %s ha llamado: quieren devolver a %s. Vendrán mañana." % [v["who"], r["animal"]["name"]])
 
@@ -534,7 +536,12 @@ func end_day() -> void:
 	for c in s["consequences"].duplicate():
 		if c["day"] <= s["day"]:
 			s["consequences"].erase(c)
+			_close_followup(c["animal"]["id"])
 			lines.append(_consequence(c))
+	# El seguimiento se hace durante el primer mes.
+	for f in s["followups"].duplicate():
+		if f["closed"] or s["day"] - f["day"] > 30:
+			s["followups"].erase(f)
 
 	# --- Solicitudes de adopción ---
 	for rq in s["requests"].duplicate():
@@ -1372,6 +1379,9 @@ func adopt(request_id: int, animal_id: int) -> String:
 		s["returns"].append({"animal": a, "day": s["day"] + rng.randi_range(2, 8), "reason": reasons[rng.randi() % reasons.size()], "who": rq["who"]})
 	if rng.randf() < 0.3:
 		s["donors"].append(rng.randi_range(Catalog.DONOR_MONTHLY[0], Catalog.DONOR_MONTHLY[1]))
+	s["followups"].append({"id": s["next_id"], "animal_id": a["id"], "name": a["name"], "species": a["species"],
+		"who": rq["who"], "day": s["day"], "called": false, "visited": false, "closed": false})
+	s["next_id"] += 1
 	changed.emit()
 	var fit: String = ["no encaja nada con lo que buscaban", "encaja en parte", "¡encaje perfecto!"][score]
 	return "¡%s se va a casa con %s! (%s) +%d €" % [a["name"], rq["who"], fit, Catalog.ADOPTION_FEE + donation]
@@ -1437,6 +1447,174 @@ func _consequence(c: Dictionary) -> String:
 			_rep(-4)
 			return "‼ El ayuntamiento interviene en el piso de «%s»: más de 30 gatos en condiciones insalubres. Nos traen de vuelta a %s, enfermo, y %d gatos más." % [c["who"], a["name"], n]
 	return ""
+
+
+# =====================================================================
+# Seguimiento post-adopción
+# =====================================================================
+
+const FOLLOWUP_VISIT_MINUTES := 90
+
+
+func open_followups() -> Array:
+	return s["followups"].filter(func(f: Dictionary) -> bool: return not f["closed"])
+
+
+func _close_followup(animal_id: int) -> void:
+	for f in s["followups"]:
+		if f["animal_id"] == animal_id:
+			f["closed"] = true
+
+
+func _pending_return(animal_id: int) -> Dictionary:
+	for r in s["returns"]:
+		if r["animal"]["id"] == animal_id:
+			return r
+	return {}
+
+
+func _pending_consequence(animal_id: int) -> Dictionary:
+	for c in s["consequences"]:
+		if c["animal"]["id"] == animal_id:
+			return c
+	return {}
+
+
+## Estado real de una adopción: "bien", "devolucion" (va a fracasar) o el tipo de adoptante no apto.
+func followup_status(f: Dictionary) -> String:
+	var c := _pending_consequence(f["animal_id"])
+	if not c.is_empty():
+		return c["type"]
+	if not _pending_return(f["animal_id"]).is_empty():
+		return "devolucion"
+	return "bien"
+
+
+## Llamada: rápida. Las familias buenas cuentan la verdad; las no aptas dan largas.
+func followup_call(fid: int) -> Dictionary:
+	var f := _find_id(s["followups"], fid)
+	if f.is_empty():
+		return {}
+	advance_minutes(15)
+	var status := followup_status(f)
+	var first: bool = not f["called"]
+	f["called"] = true
+	var nm: String = f["name"]
+	var t: String
+	match status:
+		"bien":
+			t = ["¡Hola! %s está fenomenal. Ya duerme en el sofá, aunque le hemos dicho mil veces que no.",
+				"%s es uno más de la familia. Los niños no se separan de él. ¡Gracias por llamar!",
+				"Todo muy bien. %s se ha adaptado genial, el veterinario dice que está estupendo."][rng.randi() % 3] % nm
+			if first:
+				_rep(1)
+		"devolucion":
+			t = ["Pues... la verdad es que está costando. %s ladra mucho cuando nos vamos y los vecinos se quejan.",
+				"Bueno, regular. %s rompe cosas y no sabemos muy bien qué hacer con él.",
+				"Estamos un poco agobiados. %s no para y nosotros no llegamos a todo."][rng.randi() % 3] % nm
+		"cazador":
+			t = "Sí, sí, %s está bien, en el campo con los otros. Oye, que te tengo que dejar, que estoy liado." % nm
+		"guarda":
+			t = "Está bien, está en la nave. ¿Para qué llamáis tanto? Ya os dije que estaba bien."
+		"criador":
+			t = "¡%s está genial! Oye, por cierto, ¿no tendréis alguna hembra más, de las bonitas?" % nm
+		"regalo":
+			t = "Uf... Bueno, mi novia no está muy convencida. Ya veremos. Ahora no puedo hablar."
+		"acumulador":
+			t = "¡Están todos estupendos, mis niños! %s se lleva muy bien con los demás. Bueno, con casi todos." % nm
+	changed.emit()
+	return {"text": "📞 %s: «%s»" % [f["who"], t], "status": status}
+
+
+## Visita: lleva hora y media, pero se ve la realidad.
+func followup_visit(fid: int) -> Dictionary:
+	var f := _find_id(s["followups"], fid)
+	if f.is_empty():
+		return {}
+	if s["minute"] > Catalog.DAY_END - FOLLOWUP_VISIT_MINUTES - 30:
+		return {"text": "Es demasiado tarde para hacer una visita hoy. Mejor mañana.", "status": "tarde"}
+	advance_minutes(FOLLOWUP_VISIT_MINUTES)
+	var status := followup_status(f)
+	f["visited"] = true
+	var nm: String = f["name"]
+	var t: String
+	match status:
+		"bien":
+			t = "Visitas a %s en su nueva casa: tiene su cama, sus juguetes y una familia que lo adora. Da gusto verlo." % nm
+			_rep(1)
+			if rng.randf() < 0.3:
+				s["stock"]["pienso"] += 15.0
+				t += " Al despediros, la familia os da un saco de pienso para el refugio."
+		"devolucion":
+			t = "%s está nervioso y la familia, desbordada. Con unos buenos consejos y algo de paciencia, quizá funcione." % nm
+		"cazador":
+			t = "Encuentras a %s en un cercado embarrado con otros perros, muy delgado, con agua sucia y sin refugio. El contrato de adopción no permite tenerlo así." % nm
+		"guarda":
+			t = "%s está atado con una cadena corta en el patio de una nave, sin sombra y con el cuenco vacío. Te mira y mueve la cola." % nm
+		"criador":
+			t = "En la casa hay varias jaulas con perros y gatos y un cartel de «se venden cachorros». %s está en una de ellas." % nm
+		"regalo":
+			t = "%s pasa el día solo en una terraza. Nadie lo saca a pasear; la «sorpresa» no salió bien." % nm
+		"acumulador":
+			t = "El piso huele fatal: hay decenas de gatos, muchos enfermos. %s está escondido debajo de un mueble, asustado." % nm
+	changed.emit()
+	return {"text": "🏠 " + t, "status": status}
+
+
+## Consejos a una familia con problemas: a menudo evitan la devolución.
+func followup_advise(fid: int, in_person: bool) -> String:
+	var f := _find_id(s["followups"], fid)
+	if f.is_empty():
+		return ""
+	var r := _pending_return(f["animal_id"])
+	if r.is_empty():
+		return "«Gracias por los consejos, los tendremos en cuenta.»"
+	if rng.randf() < (0.8 if in_person else 0.55):
+		s["returns"].erase(r)
+		f["closed"] = true
+		_rep(1)
+		changed.emit()
+		return "«Vale, probaremos con rutinas fijas, más paseos y juguetes. ¡Gracias por no dejarnos solos!» (La adopción sigue adelante.)"
+	changed.emit()
+	return "«Lo intentaremos... pero no prometemos nada.»"
+
+
+## Recuperar el animal: el contrato de adopción lo permite si no se cumplen las condiciones.
+func followup_reclaim(fid: int, denounce: bool) -> String:
+	var f := _find_id(s["followups"], fid)
+	if f.is_empty():
+		return ""
+	var a: Dictionary = {}
+	var c := _pending_consequence(f["animal_id"])
+	if not c.is_empty():
+		s["consequences"].erase(c)
+		a = c["animal"]
+	var r := _pending_return(f["animal_id"])
+	if not r.is_empty():
+		s["returns"].erase(r)
+		a = r["animal"]
+	if a.is_empty():
+		return ""
+	f["closed"] = true
+	a["location"] = "refugio"
+	a["mood"] = maxi(0, a["mood"] - 20)
+	if c.get("type", "") in ["cazador", "guarda", "acumulador"]:
+		a["health"] = maxi(20, a["health"] - 25)
+		a["nutrition"] = maxi(10, a["nutrition"] - 30)
+	s["animals"].append(a)
+	_rep(3)
+	var msg := "Recuperas a %s gracias a la cláusula del contrato de adopción. Vuelve al refugio, a salvo." % a["name"]
+	if denounce:
+		s["stats"]["denuncias"] += 1
+		if rng.randf() < 0.7:
+			_rep(4)
+			msg += " La denuncia en el SEPRONA prospera: multa y prohibición de tener animales."
+		else:
+			_rep(1)
+			msg += " La denuncia queda archivada, pero el animal ya está a salvo."
+	world_changed.emit()
+	changed.emit()
+	return msg
 
 
 ## Lo que dice la familia al conocer al animal (antes de decidir).
@@ -1831,7 +2009,7 @@ func load_game() -> bool:
 	if typeof(data) != TYPE_DICTIONARY:
 		return false
 	s = _decode(data)
-	for k in ["visits", "consequences", "returns"]:
+	for k in ["visits", "consequences", "returns", "followups"]:
 		if not s.has(k):
 			s[k] = []  # partidas de versiones anteriores
 	if not s["stock"].has("heno"):

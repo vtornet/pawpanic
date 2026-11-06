@@ -496,6 +496,19 @@ func _tab_adoptions() -> void:
 	for a in available:
 		_p("%s · %s %s, %s, %d años" % [a["name"], a["species"], a["size"], a["energy"], a["age"]], 16)
 	_p("Las familias vienen en persona: habla con ellas en la entrada del refugio y preséntales al animal que mejor encaje. Un mal emparejamiento acaba a menudo en devolución.", 15)
+	_sep()
+	var fl := Game.open_followups()
+	_h("Seguimiento post-adopción (%d)" % fl.size())
+	if fl.is_empty():
+		_p("Aquí aparecerán las adopciones del último mes para que llames o visites a las familias.", 15)
+	for f in fl:
+		var ago: int = Game.s["day"] - f["day"]
+		_p("%s (%s) · con %s · hace %d día(s)%s%s" % [f["name"], f["species"], f["who"], ago,
+			" · llamado ✔" if f["called"] else "", " · visitado ✔" if f["visited"] else ""], 16)
+		var row := _row()
+		_btn("Llamar (15 min)", func() -> void: open_dialog("seguimiento_llamar_%d" % f["id"]), false, row)
+		_btn("Visitar (1 h 30 min)", func() -> void: open_dialog("seguimiento_visitar_%d" % f["id"]), false, row)
+	_p("Llamar es rápido; en una visita se ve la realidad. Si algo va mal, puedes aconsejar o recuperar al animal (el contrato de adopción lo permite).", 15)
 
 
 func _tab_shop(include_big: bool) -> void:
@@ -712,7 +725,8 @@ func _build_dialog() -> void:
 				who = "%s · %s" % [n.display_name, n.role]
 	_modal_title.text = who
 	var raw: String = _dialog["text"]
-	var l := _p(raw if raw.begins_with("«") or raw.begins_with("—") else "«%s»" % raw, 20)
+	var narrated := raw.begins_with("«") or raw.begins_with("—") or raw.begins_with("📞") or raw.begins_with("🏠")
+	var l := _p(raw if narrated else "«%s»" % raw, 20)
 	l.add_theme_color_override("font_color", Color(1, 0.96, 0.85))
 	_sep()
 	for opt in _dialog["options"]:
