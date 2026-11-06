@@ -94,7 +94,14 @@ static func _veterinaria() -> Dictionary:
 			text += "%s necesita su chip. Sin chip no se puede adoptar." % a["name"]
 		else:
 			text += "%s está estupendo. ¡Ojalá encuentre familia pronto!" % a["name"]
-	return {"text": text, "options": [["Ver servicios", "clinica"], ["Adiós", ""]]}
+	var opts: Array = [["Ver servicios", "clinica"]]
+	if Game.can_sign_agreement():
+		opts.append(["Proponer un convenio de precios para la protectora", func() -> Dictionary:
+			return {"text": Game.sign_agreement(), "options": [["¡Gracias, doctora!", ""]]}])
+	elif not Game.s.get("vet_agreement", false) and randf() < 0.35:
+		text += " Por cierto: cuando la protectora tenga más nombre en el pueblo, podemos hablar de un convenio de precios."
+	opts.append(["Adiós", ""])
+	return {"text": text, "options": opts}
 
 
 static func _peluquera() -> Dictionary:

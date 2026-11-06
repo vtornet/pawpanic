@@ -80,10 +80,12 @@ func new_game() -> void:
 		"visits": [],           # dueños que recogen y familias que devuelven, en persona
 		"next_id": 1,
 		"fed_today": false,
+		"forwarded_today": 0,
 		"cleaned_today": false,
 		"events": {},           # evento -> días restantes
 		"grant_day": -999,
 		"log": [],
+		"tutorial": {"active": true, "step": 0, "flags": {}},
 		"stats": {"rescued": 0, "adopted": 0, "returned": 0, "to_owner": 0, "lost": 0,
 			"denuncias": 0, "day_adopted": 0, "day_rescued": 0, "day_income": 0, "day_spent": 0},
 	}
@@ -189,7 +191,25 @@ func missing_for_adoption(a: Dictionary) -> PackedStringArray:
 ## Precio de un servicio aquí: "own" si se hace en el refugio, si no externo.
 func service_price(service: String, own: bool) -> int:
 	var sv: Dictionary = Catalog.SERVICES[service]
-	return sv["own"] if own else sv["ext"]
+	if own:
+		return sv["own"]
+	if service != "bano" and s.get("vet_agreement", false):
+		return int(round(sv["ext"] * (1.0 - Catalog.VET_AGREEMENT["discount"])))
+	return sv["ext"]
+
+
+## Convenio con la clínica: precios especiales para la protectora.
+func can_sign_agreement() -> bool:
+	return not s.get("vet_agreement", false) and s["reputation"] >= Catalog.VET_AGREEMENT["min_rep"]
+
+
+func sign_agreement() -> String:
+	if not can_sign_agreement():
+		return ""
+	s["vet_agreement"] = true
+	_log("Firmado el convenio con la clínica veterinaria (-%d %% en servicios)." % int(Catalog.VET_AGREEMENT["discount"] * 100))
+	changed.emit()
+	return "«Trato hecho. Con lo que estáis haciendo por los animales del pueblo, os lo merecéis. Desde hoy, un %d %% menos en todo.»" % int(Catalog.VET_AGREEMENT["discount"] * 100)
 
 
 ## ¿Se puede hacer este servicio en el propio refugio?
@@ -287,8 +307,16 @@ func build_starter() -> bool:
 	s["tier"] = 1
 	s["step"] = "jugando"
 	_reset_day_stats()
-	# Primer aviso: cerca y sencillo, como tutorial.
+	# Primer aviso: cerca y sencillo, como tutorial (sano, sin dueño, sin miedo).
 	_new_call({"species": "perro", "near": true, "easy": true})
+	var first := animal(s["calls"][-1]["animal"])
+	first["has_owner_chip"] = false
+	first["sick"] = false
+	first["injured"] = false
+	first["abuse"] = false
+	first["skittish"] = false
+	s["calls"][-1]["urgent"] = false
+	s["calls"][-1]["deadline"] = s["day"] + 1
 	_log("¡Caseta terminada! Ya puedes acoger animales. Abre la tablet (Tab) para ver los avisos.")
 	notify.emit("Primer aviso de recogida: mira la tablet (Tab)", "info")
 	changed.emit()
@@ -322,7 +350,8 @@ func advance_minutes(m: float) -> void:
 
 func _hourly() -> void:
 	var hour := int(s["minute"]) / 60
-	var call_chance: float = 0.08 + 0.04 * s["tier"]
+	# Avisos según el tamaño del refugio: uno al día al principio, dos o tres con un gran refugio.
+	var call_chance: float = 0.05 + 0.035 * s["tier"]
 	if s["events"].has("caza"):
 		call_chance += 0.2
 	if s["events"].has("incendio"):
@@ -354,6 +383,8 @@ func sleep() -> void:
 
 
 func end_day() -> void:
+	if Tutorial.current().get("id", "") == "dormir":
+		Tutorial.flag("dormir")
 	var lines: PackedStringArray = []
 	var list := sheltered()
 	var st: Dictionary = s["stats"]
@@ -416,7 +447,8 @@ func end_day() -> void:
 	var over := maxi(0, list.size() - slots())
 	if over > 0:
 		lines.append("⚠ Sobreocupación: %d animales más que plazas" % over)
-		_rep(-1)
+		if over >= 2:
+			_rep(-1)
 	for a in list:
 		a["days_in"] += 1
 		var dmg := 0
@@ -435,7 +467,7 @@ func end_day() -> void:
 		a["mood"] = clampi(a["mood"] + mood_delta, 0, 100)
 		if a["sick"] and rng.randf() < 0.1:
 			a["sick"] = false
-		var sick_chance := 0.015 * (2.0 if a["hygiene"] < 40 else 1.0) * (0.5 if a["vaccinated"] else 1.0)
+		var sick_chance := 0.008 * (2.0 if a["hygiene"] < 40 else 1.0) * (0.5 if a["vaccinated"] else 1.0)
 		if not a["sick"] and rng.randf() < sick_chance:
 			a["sick"] = true
 			lines.append("%s ha enfermado" % a["name"])
@@ -447,8 +479,11 @@ func end_day() -> void:
 			_rep(-4)
 			lines.append("‼ %s tuvo que ir a urgencias (300 €)" % a["name"])
 
+	# --- Casas de acogida ---
+	lines.append_array(_foster_day())
+
 	# --- Fugas ---
-	var escape_base := 0.003 if has_building("vallado") else 0.012
+	var escape_base := 0.0015 if has_building("vallado") else 0.005
 	for a in list.duplicate():
 		var ch := escape_base
 		if a["energy"] == "enérgico": ch *= 2.0
@@ -497,9 +532,10 @@ func end_day() -> void:
 	# --- Solicitudes de adopción ---
 	for rq in s["requests"].duplicate():
 		if rq.get("state", "") == "esperando":
-			s["requests"].erase(rq)
-			_rep(-1)
-			lines.append("%s se cansó de esperar en el refugio y se fue a casa." % rq["who"])
+			# Llegaron tarde: vuelven mañana.
+			rq["state"] = "pendiente"
+			rq["visit_at"] = (s["day"] + 1) * 1440 + rng.randi_range(10 * 60, 13 * 60)
+			lines.append("%s se ha ido al cerrar; volverá mañana por la mañana." % rq["who"])
 	_generate_requests(true)
 
 	# --- Eventos ---
@@ -528,6 +564,7 @@ func end_day() -> void:
 	s["minute"] = Catalog.DAY_START
 	s["fed_today"] = false
 	s["cleaned_today"] = false
+	s["forwarded_today"] = 0
 	_reset_day_stats()
 
 	if s["loan"].get("missed", 0) >= 3:
@@ -538,7 +575,7 @@ func end_day() -> void:
 		game_over.emit("La protectora ha perdido toda la confianza. La administración retira la licencia.")
 	else:
 		# Avisos de primera hora.
-		for i in rng.randi_range(0, 1 + s["tier"] / 2):
+		for i in rng.randi_range(0, s["tier"] / 2):
 			_new_call({})
 		save_game()
 
@@ -574,10 +611,15 @@ func _end_month() -> PackedStringArray:
 	if donors > 0:
 		_earn(donors, "Cuotas de socios")
 		out.append("Cuotas de %d socios: +%d €" % [s["donors"].size(), donors])
-	# Algunos socios se dan de baja si la reputación cae.
-	if s["reputation"] < 35 and s["donors"].size() > 0 and rng.randf() < 0.5:
-		s["donors"].pop_back()
-		out.append("Un socio se ha dado de baja por las noticias sobre el refugio.")
+	# Bajas normales cada mes (y más si la reputación cae).
+	var leave_p := 0.04 + (0.08 if s["reputation"] < 35 else 0.0)
+	var gone := 0
+	for d in s["donors"].duplicate():
+		if rng.randf() < leave_p:
+			s["donors"].erase(d)
+			gone += 1
+	if gone > 0:
+		out.append("Se han dado de baja %d socio(s)." % gone)
 	return out
 
 
@@ -660,7 +702,7 @@ func _expire_call(c: Dictionary) -> void:
 	if not a.is_empty() and a["location"] == "calle":
 		_remove_animal(a)
 		if c["urgent"]:
-			_rep(-2)
+			_rep(-1)
 		notify.emit("Nadie acudió al aviso de %s. El animal ya no está." % c["place"], "mal")
 
 
@@ -677,7 +719,7 @@ func _escape(a: Dictionary) -> String:
 		return "‼ %s se ha escapado. Tiene chip: su señal aparece en el mapa." % a["name"]
 	_remove_animal(a)
 	s["stats"]["lost"] += 1
-	_rep(-3)
+	_rep(-2)
 	return "‼ %s se ha escapado y no tenía chip. No podremos encontrarlo." % a["name"]
 
 
@@ -726,6 +768,82 @@ func deposit_all() -> String:
 		msg += " ⚠ Hay más animales que plazas."
 	changed.emit()
 	return msg
+
+
+# =====================================================================
+# Cuando el refugio está lleno: derivar avisos y casas de acogida
+# =====================================================================
+
+const FORWARD_PER_DAY := 2
+const SHELTERS := ["la protectora de Lepe", "la asociación de Ayamonte", "el refugio de Cartaya", "la protectora comarcal"]
+
+
+## Pasar un aviso a otra protectora. Sin penalización, pero solo un par al día.
+func forward_call(call_id: int) -> String:
+	var c := _find_id(s["calls"], call_id)
+	if c.is_empty():
+		return ""
+	if s.get("forwarded_today", 0) >= FORWARD_PER_DAY:
+		return "Hoy ya no queda sitio en ninguna protectora cercana. Tendrás que atenderlo tú."
+	s["forwarded_today"] = s.get("forwarded_today", 0) + 1
+	s["calls"].erase(c)
+	var a := animal(c["animal"])
+	if not a.is_empty() and a["location"] == "calle":
+		_remove_animal(a)
+	changed.emit()
+	return "Has llamado a %s: se hacen cargo del aviso de %s." % [SHELTERS[rng.randi() % SHELTERS.size()], c["place"]]
+
+
+## Casas de acogida disponibles: algunos voluntarios (y más con buena reputación).
+func foster_capacity() -> int:
+	return staff_count("voluntario") / 2 + int(s["reputation"]) / 25
+
+
+func fostered() -> Array:
+	return animals_at("acogida")
+
+
+func send_to_foster(id: int) -> String:
+	var a := animal(id)
+	if a.is_empty() or a["location"] != "refugio":
+		return ""
+	if fostered().size() >= foster_capacity():
+		return "No hay casas de acogida libres. Consigue más voluntarios o mejora la reputación."
+	if a["sick"] or a["injured"]:
+		return "Las casas de acogida no pueden atender a animales enfermos o heridos."
+	a["location"] = "acogida"
+	a["foster_days"] = 0
+	changed.emit()
+	return "%s se va a una casa de acogida. Allí estará mejor mientras le buscamos familia." % a["name"]
+
+
+func back_from_foster(id: int) -> String:
+	var a := animal(id)
+	if a.is_empty() or a["location"] != "acogida":
+		return ""
+	a["location"] = "refugio"
+	changed.emit()
+	return "%s vuelve al refugio desde su casa de acogida." % a["name"]
+
+
+## Cada día en acogida: mejora el ánimo, cuesta algo de pienso y a veces la familia se lo queda.
+func _foster_day() -> PackedStringArray:
+	var out: PackedStringArray = []
+	for a in fostered():
+		a["foster_days"] = a.get("foster_days", 0) + 1
+		a["mood"] = mini(100, a["mood"] + 5)
+		a["hygiene"] = mini(100, a["hygiene"] + 5)
+		a["nutrition"] = mini(100, a["nutrition"] + 10)
+		_spend(1, "Pienso para casas de acogida")
+		# Solo pueden adoptarlo si ya está preparado (revisado, vacunado, desparasitado y con chip).
+		var ready: bool = a["reviewed"] and a["vaccinated"] and a["dewormed"] and a["chip"] == "nuestro" and a.get("owner_case", "") == ""
+		if ready and a["foster_days"] >= 7 and rng.randf() < 0.06:
+			_remove_animal(a)
+			s["stats"]["adopted"] += 1
+			_earn(Catalog.ADOPTION_FEE, "Adopción (familia de acogida)")
+			_rep(3)
+			out.append("🏠 La familia de acogida de %s ha decidido adoptarlo. ¡Se queda con ellos para siempre!" % a["name"])
+	return out
 
 
 func take_out(id: int) -> String:
@@ -985,7 +1103,7 @@ func _update_visits() -> void:
 		if not rq.has("visit_at"):  # partidas guardadas antes de las visitas
 			rq["visit_at"] = _visit_time(false)
 		var st: String = rq.get("state", "pendiente")
-		if st == "pendiente" and now >= rq["visit_at"] and s["minute"] < Catalog.DAY_END - 60:
+		if st == "pendiente" and now >= rq["visit_at"] and s["minute"] < Catalog.DAY_END - 120:
 			rq["state"] = "esperando"
 			rq["wait_until"] = now + 150
 			notify.emit("%s ha llegado al refugio para conocer a los animales. Ve a atenderles." % rq["who"], "aviso")
@@ -1320,6 +1438,8 @@ func buy_product(id: String, qty: int = 1) -> String:
 		return "No tienes dinero suficiente."
 	_spend(price, p["name"])
 	s["stock"][id] += p["amount"] * qty
+	if id.begins_with("pienso"):
+		Tutorial.flag("pienso")
 	changed.emit()
 	return "Comprado: %d × %s (%d €)" % [qty, p["name"], price]
 
@@ -1430,6 +1550,9 @@ func run_campaign(id: String) -> String:
 	_spend(c["price"], c["name"])
 	var bonus: int = s["reputation"] / 25
 	var new_donors := rng.randi_range(c["donors"][0], c["donors"][1] + bonus)
+	# El pueblo no es infinito: cuantos más socios tienes, menos rinde cada campaña.
+	var room := maxf(0.0, 1.0 - float(s["donors"].size()) / donor_cap())
+	new_donors = int(round(new_donors * room))
 	for i in new_donors:
 		s["donors"].append(rng.randi_range(Catalog.DONOR_MONTHLY[0], Catalog.DONOR_MONTHLY[1]))
 	var cash := 0
@@ -1441,6 +1564,11 @@ func run_campaign(id: String) -> String:
 	advance_minutes(60)
 	changed.emit()
 	return "%s: %d nuevos socios%s." % [c["name"], new_donors, ", %d € recaudados" % cash if cash > 0 else ""]
+
+
+## Socios posibles según la reputación y el tamaño del refugio.
+func donor_cap() -> int:
+	return 15 + int(s["reputation"] * 0.6) + int(s["tier"]) * 15
 
 
 func grant_check() -> Array:
@@ -1497,7 +1625,7 @@ func _random_event() -> String:
 	var e: String = pool[rng.randi() % pool.size()]
 	match e:
 		"camada":
-			var n := rng.randi_range(3, 5)
+			var n := rng.randi_range(2, 4)
 			for i in n:
 				var a := _make_animal({"species": "perro" if rng.randf() < 0.6 else "gato", "size": "pequeño", "easy": true})
 				a["age"] = 0

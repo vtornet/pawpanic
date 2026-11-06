@@ -32,6 +32,7 @@ var _visitors_sig := ""
 var _visitor_nodes := {}  # clave (adoptante_N / visita_N) -> nodo
 var _animals_sig := ""
 var _current: Interactable
+var _goal_marker: Node3D
 
 
 func _ready() -> void:
@@ -60,6 +61,9 @@ func _ready() -> void:
 	player.name = "Jugador"
 	add_child(player)
 	place_player_at_shelter()
+
+	_goal_marker = _make_goal_marker()
+	add_child(_goal_marker)
 
 	Game.world_changed.connect(_sync)
 	Game.changed.connect(_sync_shelter)
@@ -661,6 +665,57 @@ func _process(delta: float) -> void:
 		AnimalMesh.animate(_street_nodes[id], t, id)
 	# (los del refugio los mueve ShelterLife)
 	_update_interaction()
+	_update_goal_marker(t)
+
+
+## Flecha dorada que marca el objetivo del tutorial.
+func _make_goal_marker() -> Node3D:
+	var m := Node3D.new()
+	var arrow := Shapes.box(Vector3(0.5, 0.5, 0.5), Color(1, 0.8, 0.2), Vector3(0, 0, 0))
+	arrow.rotation_degrees = Vector3(45, 0, 45)
+	var mat := arrow.material_override as StandardMaterial3D
+	mat.emission_enabled = true
+	mat.emission = Color(1, 0.7, 0.1)
+	mat.emission_energy_multiplier = 1.5
+	m.add_child(arrow)
+	var l := Shapes.label("▼ OBJETIVO", Vector3(0, 0.9, 0), 40)
+	l.modulate = Color(1, 0.85, 0.3)
+	l.no_depth_test = true
+	l.fixed_size = true
+	l.pixel_size = 0.0014
+	m.add_child(l)
+	m.visible = false
+	return m
+
+
+func _goal_position() -> Vector3:
+	var goal := Tutorial.current()
+	if goal.is_empty():
+		return Vector3.INF
+	var base: Vector3 = Game.s["land_pos"]
+	match goal["target"]:
+		"call":
+			for c in Game.s["calls"]:
+				var a := Game.animal(c["animal"])
+				if not a.is_empty():
+					return a["pos"] + Vector3(0, 2.2, 0)
+		"clinica", "tienda":
+			var pl: Dictionary = PLACES[goal["target"]]
+			var pos: Vector3 = pl["pos"]
+			return pos + Vector3(-signf(pos.x) * (pl["depth"] / 2.0 + 1.0), 3.2, 0)
+		"shelter":
+			return base + HOUSE_POS + Vector3(0, 3.6, -Interiors.SHELTER_D / 2 - 0.5)
+		"visitors":
+			return _visitor_spot(0) + Vector3(0, 2.6, 0)
+	return Vector3.INF
+
+
+func _update_goal_marker(t: float) -> void:
+	var p := _goal_position()
+	_goal_marker.visible = p != Vector3.INF
+	if _goal_marker.visible:
+		_goal_marker.global_position = p + Vector3(0, sin(t * 3.0) * 0.25, 0)
+		_goal_marker.rotation.y = t * 1.5
 
 
 func _update_interaction() -> void:

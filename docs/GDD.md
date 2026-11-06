@@ -256,6 +256,10 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 - [x] Ampliaciones del refugio con interior: consulta y quirófano (servicios propios), zona de limpieza, cuarentena (los enfermos van allí), gatera (los gatos, también en el estante), caniles exteriores, patio (los perros enérgicos salen de 10:00 a 18:00) y almacén; cada profesional trabaja en su sala
 - [x] Animales vivos en el refugio: pasean por su canil, el patio o la gatera, se sientan y se tumban a dormir; los enérgicos se mueven más, los miedosos se quedan al fondo, los enfermos descansan y por la tarde duermen
 - [x] Personal trabajando: el cuidador recorre los caniles, el limpiador friega con su fregona, los voluntarios van y vienen, el paseador da vueltas por el patio y la veterinaria y el peluquero se mueven por su sala
+- [x] Tutorial guiado de la primera partida (9 objetivos con marcador en el mundo y ayuda de bienvenida al terminar; se puede saltar)
+- [x] Refugio lleno: derivar avisos a otras protectoras (2 al día) y casas de acogida con voluntarios (no ocupan plaza; a veces la familia de acogida adopta)
+- [x] Convenio con la clínica veterinaria (reputación 50): -30 % en servicios externos
+- [x] Equilibrio revisado con un simulador de un año (tests/balance_sim.gd): un buen jugador sobrevive con margen justo al principio y crece; uno descuidado cierra en 2-4 meses
 - [x] Paso del día: el sol sale, recorre el cielo y se pone (atardecer anaranjado), y las farolas se encienden por la tarde
 - [x] Pueblo con vida: vecinos que pasean y con los que se puede hablar (pistas sobre animales sueltos, algún donativo, comentarios según la reputación) y coches que circulan y frenan ante el jugador
 - [x] Dueños y devoluciones en persona: el dueño de un animal con chip pide cita, viene, se lo entregas (a veces con recompensa) y se va con él; si no le atiendes, vuelve otro día. Quien devuelve viene con el animal y explica por qué: lo recibes o le das consejos para que lo intente otra vez; si nadie le atiende, lo deja atado a la puerta
@@ -272,3 +276,16 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 - [ ] Combustible, moral del personal, turnos
 - [ ] Más perfiles no aptos (peleas, reventa a laboratorios...) y seguimiento post-adopción para detectarlos a tiempo
 - [ ] Logros de Steam
+
+
+## 17. Equilibrio (simulador)
+
+`godot --headless -- --balance` juega un año desde el inicio real (préstamo mediano) con tres estilos y cinco semillas:
+
+| Estilo | Resultado típico |
+|---|---|
+| Bueno (rescata con cabeza, prepara bien, rechaza a no aptos, campañas, amplía, convenio) | Sobrevive el año; mínimo de dinero entre 0 y 7.000 €; termina con 4.000–28.000 €, 24–44 plazas y reputación 93–100 |
+| Pasivo (cuida bien pero no crece ni hace campañas) | Suele sobrevivir con un refugio pequeño; a veces se complica |
+| Descuidado (no alimenta a mano, adopta a cualquiera) | Cierra en 2–4 meses |
+
+Cambios del repaso: menos avisos con el refugio pequeño, menos fugas y enfermedades, la sobreocupación solo penaliza a partir de 2 animales de más, las familias que llegan tarde vuelven al día siguiente, techo de socios según reputación y tamaño (con bajas mensuales), derivar avisos, casas de acogida y convenio veterinario.

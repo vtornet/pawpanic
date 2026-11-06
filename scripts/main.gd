@@ -3,6 +3,8 @@ extends Node
 ##
 ## Argumentos opcionales tras "--":
 ##   --smoke          prueba automática de la simulación y cierra
+##   --tutorial-test  juega el tutorial completo y cierra
+##   --balance        simula un año con varios estilos de juego (solo lógica) y muestra resultados
 ##   --quit-after=N   cierra tras N segundos
 
 var world: World
@@ -10,6 +12,12 @@ var ui: GameUI
 
 
 func _ready() -> void:
+	# El simulador de equilibrio solo necesita la lógica (Game), sin mundo ni interfaz.
+	if "--balance" in OS.get_cmdline_user_args():
+		var bs: Node = load("res://tests/balance_sim.gd").new()
+		add_child(bs)
+		bs.run.call_deferred(null, null)
+		return
 	world = World.new()
 	world.name = "World"
 	add_child(world)
@@ -28,5 +36,9 @@ func _ready() -> void:
 			var test: Node = script.new()
 			add_child(test)
 			test.run.call_deferred(world, ui)
+		elif arg == "--tutorial-test":
+			var tt: Node = load("res://tests/tutorial_test.gd").new()
+			add_child(tt)
+			tt.run.call_deferred(world, ui)
 		elif arg.begins_with("--quit-after="):
 			get_tree().create_timer(float(arg.get_slice("=", 1))).timeout.connect(get_tree().quit)

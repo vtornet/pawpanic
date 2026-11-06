@@ -11,6 +11,8 @@ var _hud_right: Label
 var _prompt: Label
 var _crosshair: Label
 var _toasts: VBoxContainer
+var _objective: Label
+var _objective_hint: Label
 
 var _modal: PanelContainer      # paneles grandes (tablet, lugares, arranque)
 var _modal_body: VBoxContainer
@@ -59,6 +61,24 @@ func _ready() -> void:
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.position = Vector2(20, -34)
 	_root.add_child(help)
+
+	# Objetivo del tutorial, arriba en el centro.
+	_objective = _label(22)
+	_objective.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_objective.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_objective.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_objective.size = Vector2(760, 0)
+	_objective.position = Vector2(-380, 14)
+	_objective.modulate = Color(1, 0.88, 0.45)
+	_root.add_child(_objective)
+	_objective_hint = _label(16)
+	_objective_hint.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_objective_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_objective_hint.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_objective_hint.size = Vector2(760, 0)
+	_objective_hint.position = Vector2(-380, 76)
+	_objective_hint.modulate = Color(1, 1, 1, 0.8)
+	_root.add_child(_objective_hint)
 
 	_toasts = VBoxContainer.new()
 	_toasts.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -133,6 +153,8 @@ func open_panel(kind: String) -> void:
 	Game.paused = true
 	world.player.ui_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if kind == "tablet":
+		Tutorial.flag("tablet")
 	_rebuild()
 	_scroll.scroll_vertical = 0
 
@@ -167,6 +189,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _on_changed() -> void:
+	Tutorial.check()
 	_update_hud()
 	if _open != "" and not _rebuild_queued:
 		_rebuild_queued = true
@@ -225,6 +248,13 @@ func _update_hud() -> void:
 		s["calls"].size(), Game.animals_at("escapado").size(),
 		"\n‼ Visitas esperando en el refugio: %d" % (Game.visitors().size() + Game.person_visits().size()) if not (Game.visitors().is_empty() and Game.person_visits().is_empty()) else ""]
 	_crosshair.visible = _open == ""
+	if Tutorial.active() and s["step"] == "jugando":
+		var st := Tutorial.state()
+		_objective.text = "Tutorial %d/%d · %s" % [st["step"] + 1, Tutorial.STEPS.size(), Tutorial.current()["text"]]
+		_objective_hint.text = Tutorial.current()["hint"] + "   (Esc → Saltar tutorial)"
+	else:
+		_objective.text = ""
+		_objective_hint.text = ""
 
 
 func toast(text: String, kind: String = "info") -> void:
@@ -388,6 +418,8 @@ func _tab_calls() -> void:
 		var dist := int(Game.player_pos.distance_to(a.get("pos", Vector3.ZERO)))
 		_p("%s%s\n   A %d m · plazo: %s" % ["‼ URGENTE · " if c["urgent"] else "", c["desc"], dist,
 			"hoy antes de las 20:00" if c["deadline"] == s["day"] else "mañana"])
+		_btn("Derivar a otra protectora (quedan %d hoy)" % maxi(0, Game.FORWARD_PER_DAY - s.get("forwarded_today", 0)),
+			func() -> void: _act(Game.forward_call(c["id"])), s.get("forwarded_today", 0) >= Game.FORWARD_PER_DAY)
 	_p("Los avisos aparecen en el mundo como columnas de luz roja. Con %s puedes llevar %d animal(es)." % [Game.vehicle()["name"], Game.capacity()], 15)
 	var esc := Game.animals_at("escapado")
 	if not esc.is_empty():
@@ -430,7 +462,7 @@ func _animal_line(a: Dictionary) -> String:
 
 
 func _tab_animals() -> void:
-	var where := {"llevando": "Contigo", "refugio": "En el refugio", "escapado": "Escapados"}
+	var where := {"llevando": "Contigo", "refugio": "En el refugio", "acogida": "En casas de acogida", "escapado": "Escapados"}
 	for loc in where:
 		var list := Game.animals_at(loc)
 		if list.is_empty():
@@ -552,13 +584,19 @@ func _build_refugio() -> void:
 			var v := Game._find(Catalog.VEHICLES, id)
 			_btn(v["name"], func() -> void: _act(Game.use_vehicle(id)), id == Game.s["vehicle"], vrow)
 	_sep()
-	_h("Animales en el refugio (%d / %d plazas)" % [Game.occupancy(), Game.slots()])
+	_h("Animales en el refugio (%d / %d plazas) · casas de acogida: %d / %d" % [Game.occupancy(), Game.slots(), Game.fostered().size(), Game.foster_capacity()])
+	for a in Game.fostered():
+		var frow := _row()
+		_p("🏡 %s está en una casa de acogida (%d días)" % [a["name"], a.get("foster_days", 0)], 16, frow)
+		_btn("Traer de vuelta", func() -> void: _act(Game.back_from_foster(a["id"])), false, frow)
 	if Game.occupancy() == 0:
 		_p("No hay animales todavía.")
 	for a in Game.sheltered():
 		_p(_animal_line(a), 16)
 		var arow := _row()
 		_btn("Llevar conmigo", func() -> void: _act(Game.take_out(a["id"])), false, arow)
+		_btn("A casa de acogida", func() -> void: _act(Game.send_to_foster(a["id"])),
+			Game.fostered().size() >= Game.foster_capacity() or a["sick"] or a["injured"], arow)
 		for sv in Catalog.SERVICES:
 			if Game.can_do_own(sv):
 				_btn("%s (%d €)" % [Catalog.SERVICES[sv]["name"], Game.service_price(sv, true)],
@@ -600,9 +638,12 @@ func _services_for_carried(services: Array, place: String) -> void:
 		_p(_animal_line(a), 16)
 		var row := _row()
 		for sv in services:
-			_btn("%s (%d €)" % [Catalog.SERVICES[sv]["name"], Catalog.SERVICES[sv]["ext"]],
-				func() -> void: _act(Game.apply_service(a["id"], sv, false)), not Game.can_afford(Catalog.SERVICES[sv]["ext"]), row)
+			var price := Game.service_price(sv, false)
+			_btn("%s (%d €)" % [Catalog.SERVICES[sv]["name"], price],
+				func() -> void: _act(Game.apply_service(a["id"], sv, false)), not Game.can_afford(price), row)
 	_sep()
+	if Game.s.get("vet_agreement", false) and place == "la clínica":
+		_p("Precios con el convenio de la protectora (-30 %).", 15)
 	_p("Servicios en %s. Cuando tengas instalaciones y personal propios, saldrá mucho más barato." % place, 15)
 
 
@@ -718,6 +759,11 @@ func _close_summary() -> void:
 func _build_pause() -> void:
 	_modal_title.text = "Pausa"
 	_btn("Seguir jugando", close_panel)
+	if Tutorial.active():
+		_btn("Saltar tutorial", func() -> void:
+			Tutorial.skip()
+			toast("Tutorial desactivado.", "info")
+			close_panel())
 	_btn("Guardar partida", func() -> void:
 		Game.save_game()
 		toast("Partida guardada.", "bien"))

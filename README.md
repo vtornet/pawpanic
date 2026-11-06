@@ -46,6 +46,10 @@ Cada **ampliación del refugio** tiene interior y se usa desde dentro: en la **c
 
 El pueblo tiene vida: **vecinos** que pasean (habla con ellos: a veces han visto un animal suelto o te dan un donativo) y **coches** que circulan, así que cuidado al cruzar. El sol avanza con la hora y al atardecer se encienden las farolas.
 
+**La primera partida tiene un tutorial** que te guía paso a paso con una flecha dorada (se puede saltar desde el menú de pausa).
+
+**Si el refugio se llena**: deriva avisos a otras protectoras (tablet → Avisos, dos al día) o manda animales a **casas de acogida** de tus voluntarios desde la mesa de la caseta. Con reputación 50 puedes proponer a la Dra. Carmen un **convenio** de precios para la protectora.
+
 Si un animal **con chip** se escapa, verás su señal de forma intermitente (continua con el rastreador). **Sin chip**, se pierde.
 Si un animal con chip llega con **indicios de maltrato**, puedes denunciar al propietario en el SEPRONA.
 Tres cuotas del préstamo sin pagar o una reputación de 0 terminan la partida. Se guarda al final de cada día.
@@ -62,6 +66,7 @@ scripts/world/animal_mesh.gd Modelo provisional de perros y gatos
 scripts/world/ambience.gd  Sol según la hora, farolas, vecinos que pasean y coches
 scripts/world/npc.gd       Personajes (modelo, animación, mirar al jugador)
 scripts/core/dialogues.gd  Qué dice cada personaje según la partida
+scripts/core/tutorial.gd   Tutorial de la primera partida
 scripts/world/interactable.gd
 scripts/ui/ui.gd           Arranque, HUD, tablet y paneles de cada lugar
 scripts/util/shapes.gd     Geometría provisional
@@ -73,5 +78,7 @@ La lógica (`game.gd`) no depende del mundo ni de la interfaz, así que se puede
 probar y equilibrar sin abrir el juego:
 
 ```bash
-godot --headless -- --smoke     # debe terminar con SMOKE PASS
+godot --headless -- --smoke          # debe terminar con SMOKE PASS
+godot --headless -- --tutorial-test  # juega el tutorial: TUTORIAL PASS
+godot --headless -- --balance        # simula un año con tres estilos de jugador y muestra el equilibrio
 ```

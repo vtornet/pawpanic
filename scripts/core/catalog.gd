@@ -66,6 +66,9 @@ const SERVICES := {
 	"bano": {"name": "Baño y limpieza", "ext": 25, "own": 4},
 }
 
+## Convenio con la clínica externa (se propone a la veterinaria con buena reputación).
+const VET_AGREEMENT := {"min_rep": 50, "discount": 0.3}
+
 const PRODUCTS := [
 	{"id": "pienso", "name": "Saco de pienso 15 kg", "price": 32, "amount": 15.0, "unit": "kg"},
 	{"id": "pienso_premium", "name": "Saco de pienso premium 15 kg", "price": 55, "amount": 15.0, "unit": "kg", "premium": true},

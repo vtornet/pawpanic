@@ -261,6 +261,9 @@ func run(world: World, ui: GameUI) -> void:
 		Game.hire("veterinario")
 	if Game.staff_count("peluquero") == 0:
 		Game.hire("peluquero")
+	for other in Game.sheltered():  # que la cuarentena esté libre
+		other["sick"] = false
+		other["injured"] = false
 	var sick_dog := Game._make_animal({"species": "perro"})
 	sick_dog["location"] = "refugio"
 	sick_dog["sick"] = true
