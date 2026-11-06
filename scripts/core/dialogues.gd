@@ -123,9 +123,8 @@ static func _peluquera() -> Dictionary:
 static func _dependiente() -> Dictionary:
 	var st: Dictionary = Game.s["stock"]
 	var kg: float = st["pienso"] + st["pienso_premium"]
-	var need := 0.0
-	for a in Game.sheltered():
-		need += Catalog.FEED_PER_DAY[a["size"]]
+	var need := Game.daily_need("pienso")
+	var hay := Game.daily_need("heno")
 	var text: String
 	if need <= 0.0:
 		text = "¡Buenas! Cuando tengas animales, aquí tienes pienso para todos los gustos. Y los productos de limpieza, que no se te olviden."
@@ -138,6 +137,9 @@ static func _dependiente() -> Dictionary:
 			text += "Y te veo corto de productos de limpieza."
 		else:
 			text += "Vas bien servido de momento."
+	if hay > 0.0:
+		var hd := int(st.get("heno", 0.0) / hay)
+		text += " Del heno para los herbívoros te quedan unos %d días%s" % [hd, "; no te descuides." if hd < 4 else "."]
 	if Game.has_building("almacen"):
 		text += " Como tienes almacén, te hago un 10 %."
 	return {"text": text, "options": [["Comprar", "tienda"], ["Adiós", ""]]}
@@ -203,11 +205,15 @@ static func _adopter(request_id: int) -> Dictionary:
 	var article := "una" if home.begins_with("casa") else "un"
 	var text: String
 	var suspect: String = rq.get("suspect", "")
+	var art_sp := "una" if rq["species"] == "cabra" else "un"
+	var size_txt: String = rq["size"]
+	if rq["species"] == "cabra":
+		size_txt = {"pequeño": "pequeña", "mediano": "mediana"}.get(size_txt, size_txt)
 	if suspect != "":
 		text = SUSPECT_INTRO[suspect] % [rq["species"], rq["size"]]
 	else:
-		text = "%s un %s %s. Vivimos en %s %s y nos gustaría que fuera %s." % [
-			intro.get(rq["who"], "Hola, queremos adoptar"), rq["species"], rq["size"], article, home, energy_txt]
+		text = "%s %s %s %s. Vivimos en %s %s y nos gustaría que fuera %s." % [
+			intro.get(rq["who"], "Hola, queremos adoptar"), art_sp, rq["species"], size_txt, article, home, energy_txt]
 	var options: Array = []
 	var ready := Game.sheltered().filter(func(a: Dictionary) -> bool: return a["species"] == rq["species"] and Game.is_adoptable(a))
 	var not_ready := Game.sheltered().filter(func(a: Dictionary) -> bool: return a["species"] == rq["species"] and not Game.is_adoptable(a))

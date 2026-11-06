@@ -318,6 +318,57 @@ func run(world: World, ui: GameUI) -> void:
 	Game.apply_service(sick_dog["id"], "tratamiento", true)
 	_check(Game.money() == money_v - Catalog.SERVICES["tratamiento"]["own"], "el tratamiento propio debería costar el precio de material")
 
+	# --- Nuevas especies: conejos y animales de granja ---
+	Game.s["money"] = 200000
+	Game.s["calls"].clear()
+	var bunny := Game._make_animal({"species": "conejo"})
+	bunny["location"] = "calle"
+	bunny["skittish"] = false
+	bunny["pos"] = Vector3(5, 0, 5)
+	Game.s["animals"].append(bunny)
+	if Game.has_building("conejera"):
+		_check(false, "la conejera no debería existir todavía")
+	_check(not Game.pick_up(bunny["id"]).begins_with("Has recogido"), "sin conejera no se debería poder acoger un conejo")
+	Game.build("conejera")
+	Game.use_vehicle("bici") if "bici" in Game.s["vehicles"] else null
+	Game.deposit_all()
+	_check(Game.pick_up(bunny["id"]).begins_with("Has recogido"), "con conejera debería poder recogerse el conejo")
+	Game.deposit_all()
+	_check(Game.food_of(bunny) == "heno" and Game.feed_need(bunny) > 0.0, "el conejo debería comer heno")
+	Game.s["stock"]["heno"] = 10.0
+	var hay_before: float = Game.s["stock"]["heno"]
+	Game.feed_all()
+	Game.end_day()
+	_check(Game.s["stock"]["heno"] < hay_before, "debería gastarse heno")
+	var horse := Game._make_animal({"species": "caballo"})
+	horse["location"] = "calle"
+	horse["skittish"] = false
+	horse["pos"] = Vector3(8, 0, 8)
+	Game.s["animals"].append(horse)
+	Game.build("establo")
+	_check(Game.has_building("establo"), "debería poder construirse el establo en la finca")
+	_check(not Game.pick_up(horse["id"]).begins_with("Has recogido"), "un caballo no debería poder llevarse sin remolque")
+	Game.buy_equipment("remolque")
+	Game.buy_vehicle("coche")
+	Game.use_vehicle("coche")
+	Game.deposit_all()
+	_check(Game.pick_up(horse["id"]).begins_with("Has recogido"), "con remolque y coche debería poder llevarse el caballo")
+	Game.deposit_all()
+	var m0 := Game.money()
+	Game.apply_service(horse["id"], "revision", false)
+	_check(m0 - Game.money() == Game.service_price("revision", false) + Catalog.LARGE_VET_TRAVEL, "el veterinario a domicilio debería cobrar desplazamiento")
+	Game.changed.emit()
+	await _frames(2)
+	var horse_node: Node3D = null
+	for n in world._shelter_animals.get_children():
+		if n.get_meta("id", -1) == horse["id"]:
+			horse_node = n
+	var est: Vector3 = Vector3.INF
+	for bs in world._building_spots:
+		if bs["id"] == "establo":
+			est = Game.s["land_pos"] + bs["pos"]
+	_check(horse_node != null and est != Vector3.INF and horse_node.global_position.distance_to(est) < 3.5, "el caballo debería estar en el establo")
+
 	# --- Simulación larga: 200 días con decisiones sencillas ---
 	Game.s["money"] = 50000
 	for day in 200:
@@ -356,6 +407,8 @@ func run(world: World, ui: GameUI) -> void:
 				Game.send_visitor_home(rq["id"])
 		if Game.s["stock"]["pienso"] < 20:
 			Game.buy_product("pienso", 5)
+		if Game.s["stock"]["heno"] < Game.daily_need("heno") * 4 + 5:
+			Game.buy_product("heno", 3)
 		if Game.s["stock"]["limpieza"] < 5:
 			Game.buy_product("limpieza", 3)
 		Game.feed_all()

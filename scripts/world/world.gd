@@ -318,6 +318,12 @@ func _spots_of(id: String) -> Array:
 				"caniles":
 					z["center"] = bp + Vector3(sp.x, 0.06, 0.3)
 					z["half"] = Vector2(0.35, 1.4)
+				"conejera":
+					z["center"] = bp + Vector3(0, 0.06, -0.5)
+					z["half"] = Vector2(2.0, 1.3)
+				"establo":
+					z["center"] = bp + Vector3(sp.x, 0.06, 0.2)
+					z["half"] = Vector2(0.2, 0.6)
 			out.append(z)
 	return out
 
@@ -336,6 +342,8 @@ func _sync_shelter_animals() -> void:
 		return
 	# Cada animal va a su sitio: enfermos a cuarentena, gatos a la gatera, perros enérgicos
 	# al patio durante el día, y el resto a los caniles de la caseta y los exteriores.
+	var hutch := _spots_of("conejera")
+	var stable := _spots_of("establo")
 	var quarantine := _spots_of("cuarentena")
 	var cattery := _spots_of("gatera")
 	var patio := _spots_of("patio") if _patio_time() else []
@@ -348,7 +356,13 @@ func _sync_shelter_animals() -> void:
 	var base: Vector3 = Game.s["land_pos"]
 	for a in list:
 		var z: Dictionary = {}
-		if (a["sick"] or a["injured"]) and not quarantine.is_empty():
+		if a["species"] == "conejo" and not hutch.is_empty():
+			z = hutch.pop_front()
+		elif Game.is_large(a) and not stable.is_empty():
+			z = stable.pop_front()
+		elif a["species"] in ["conejo", "cabra", "burro", "caballo"]:
+			pass  # sin su instalación: se quedan en el patio de entrada
+		elif (a["sick"] or a["injured"]) and not quarantine.is_empty():
 			z = quarantine.pop_front()
 		elif a["species"] == "gato" and not cattery.is_empty():
 			z = cattery.pop_front()

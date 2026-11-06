@@ -46,6 +46,8 @@ Cada **ampliación del refugio** tiene interior y se usa desde dentro: en la **c
 
 El pueblo tiene vida: **vecinos** que pasean (habla con ellos: a veces han visto un animal suelto o te dan un donativo) y **coches** que circulan, así que cuidado al cruzar. El sol avanza con la hora y al atardecer se encienden las farolas.
 
+**Más especies**: con la **conejera** (barata, desde el principio) empezarán a llegar conejos, y con el **establo** de la finca, cabras, burros y caballos. Comen **heno**; para burros y caballos necesitas el **remolque**, y como no caben en la clínica, el veterinario de grandes animales viene al refugio (con un pequeño suplemento).
+
 **La primera partida tiene un tutorial** que te guía paso a paso con una flecha dorada (se puede saltar desde el menú de pausa).
 
 **Si el refugio se llena**: deriva avisos a otras protectoras (tablet → Avisos, dos al día) o manda animales a **casas de acogida** de tus voluntarios desde la mesa de la caseta. Con reputación 50 puedes proponer a la Dra. Carmen un **convenio** de precios para la protectora.

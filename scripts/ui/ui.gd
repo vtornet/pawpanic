@@ -385,11 +385,11 @@ func _tab_summary() -> void:
 		next_month, Game.monthly_wages(), Catalog.FIXED_MONTHLY - (Catalog.SOLAR_SAVING if Game.has_building("placas") else 0), Game.monthly_donors()])
 	_p("Refugio: %d / %d plazas · Terreno: %s (nivel %d)" % [Game.occupancy(), Game.slots(), Game.land_info().get("name", ""), s["tier"]])
 	var st: Dictionary = s["stock"]
-	var need := 0.0
-	for a in Game.sheltered():
-		need += Catalog.FEED_PER_DAY[a["size"]]
-	_p("Pienso: %.1f kg (%s) · Premium: %.1f kg · Limpieza: %.1f usos · Arena: %.0f" % [
-		st["pienso"], "≈ %d días" % int((st["pienso"] + st["pienso_premium"]) / need) if need > 0 else "sin consumo", st["pienso_premium"], st["limpieza"], st["arena"]])
+	var need := Game.daily_need("pienso")
+	var hay := Game.daily_need("heno")
+	_p("Pienso: %.1f kg (%s) · Premium: %.1f kg · Heno: %.0f kg%s · Limpieza: %.1f usos · Arena: %.0f" % [
+		st["pienso"], "≈ %d días" % int((st["pienso"] + st["pienso_premium"]) / need) if need > 0 else "sin consumo", st["pienso_premium"],
+		st.get("heno", 0.0), " (≈ %d días)" % int(st.get("heno", 0.0) / hay) if hay > 0 else "", st["limpieza"], st["arena"]])
 	_p("Salud media %d · Higiene media %d · Ánimo medio %d" % [Game.average("health"), Game.average("hygiene"), Game.average("mood")])
 	_p("Hoy: %s · %s" % ["comida puesta ✔" if s["fed_today"] else "sin dar de comer (los voluntarios quizá lo hagan)",
 		"limpio ✔" if s["cleaned_today"] else "sin limpiar"])

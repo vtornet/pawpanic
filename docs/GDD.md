@@ -260,6 +260,7 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 - [x] Refugio lleno: derivar avisos a otras protectoras (2 al día) y casas de acogida con voluntarios (no ocupan plaza; a veces la familia de acogida adopta)
 - [x] Convenio con la clínica veterinaria (reputación 50): -30 % en servicios externos
 - [x] Equilibrio revisado con un simulador de un año (tests/balance_sim.gd): un buen jugador sobrevive con margen justo al principio y crece; uno descuidado cierra en 2-4 meses
+- [x] Nuevas especies: conejos (conejera, desde el principio) y cabras, burros y caballos (establo en la finca); comen heno, los grandes necesitan remolque para transportarlos y el veterinario de grandes animales viene al refugio con suplemento; avisos y familias de estas especies solo cuando hay instalación
 - [x] Paso del día: el sol sale, recorre el cielo y se pone (atardecer anaranjado), y las farolas se encienden por la tarde
 - [x] Pueblo con vida: vecinos que pasean y con los que se puede hablar (pistas sobre animales sueltos, algún donativo, comentarios según la reputación) y coches que circulan y frenan ante el jugador
 - [x] Dueños y devoluciones en persona: el dueño de un animal con chip pide cita, viene, se lo entregas (a veces con recompensa) y se va con él; si no le atiendes, vuelve otro día. Quien devuelve viene con el animal y explica por qué: lo recibes o le das consejos para que lo intente otra vez; si nadie le atiende, lo deja atado a la puerta
@@ -269,7 +270,7 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 - [x] Se puede entrar en los edificios: clínica (recepción, sala de espera, consulta, hospitalización), peluquería (bañera, mesa de corte), tienda (estanterías, caja), ayuntamiento (ventanillas de banco, registro y SEPRONA) y caseta del refugio (caniles con los animales, comedero, armario de limpieza, mesa de gestión)
 
 **Pendiente**
-- [ ] Más especies (gatos implementados de forma básica; conejos, granja)
+- [ ] Más especies todavía: hurones, aves, gallinas; fauna silvestre herida (derivar a un centro de recuperación)
 - [ ] Sonido: ladridos, maullidos, ambiente del pueblo, interfaz y música
 - [ ] Más variedad de conversaciones; seguimiento post-adopción (visitas o llamadas a las familias)
 - [ ] Modelos, animaciones y sonido

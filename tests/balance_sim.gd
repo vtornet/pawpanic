@@ -136,9 +136,7 @@ func _act(style: String) -> void:
 	if careful and Game.can_sign_agreement():
 		Game.sign_agreement()
 	# Compras.
-	var need := 0.0
-	for a in Game.sheltered():
-		need += Catalog.FEED_PER_DAY[a["size"]]
+	var need := Game.daily_need("pienso")
 	var st: Dictionary = Game.s["stock"]
 	if st["pienso"] < need * 4 + 2:
 		Game.buy_product("pienso", 2 if need > 3 else 1)

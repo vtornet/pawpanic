@@ -18,6 +18,8 @@ const MONTHS := ["septiembre", "octubre", "noviembre", "diciembre", "enero", "fe
 const DOG_NAMES := ["Toby", "Luna", "Coco", "Rocky", "Lola", "Max", "Nala", "Bruno", "Kira", "Thor",
 	"Canela", "Chispa", "Lucas", "Mía", "Duna", "Rufo", "Pipa", "Simba", "Trufa", "Lur", "Bimba", "Zeus",
 	"Nieve", "Odín", "Sasha", "Tango", "Boira", "Golfo", "Perla", "Moro"]
+const RABBIT_NAMES := ["Tambor", "Copito", "Bolita", "Orejitas", "Algodón", "Zanahoria", "Pompón", "Nube"]
+const FARM_NAMES := ["Platero", "Lucero", "Canela", "Rocío", "Trueno", "Margarita", "Perla", "Moreno", "Estrella", "Chispa"]
 const CAT_NAMES := ["Misi", "Garfi", "Sombra", "Pelusa", "Michi", "Salem", "Nube", "Tigre", "Kiwi",
 	"Oreo", "Lince", "Mandarina", "Bigotes", "Gris", "Pantera", "Nala"]
 
@@ -69,7 +71,7 @@ func new_game() -> void:
 		"vehicles": ["a_pie"],
 		"vehicle": "a_pie",
 		"equipment": [],
-		"stock": {"pienso": 15.0, "pienso_premium": 0.0, "limpieza": 5.0, "arena": 0.0},
+		"stock": {"pienso": 15.0, "pienso_premium": 0.0, "limpieza": 5.0, "arena": 0.0, "heno": 0.0},
 		"staff": {"voluntario": 2},
 		"donors": [12, 15],
 		"animals": [],
@@ -409,10 +411,15 @@ func end_day() -> void:
 	var hungry_no_food := 0
 	for a in list:
 		# Comida
-		var need: float = Catalog.FEED_PER_DAY[a["size"]] * (0.6 if a["species"] == "gato" else 1.0)
+		var need := feed_need(a)
+		var food := food_of(a)
 		var got_food := false
 		if fed < care_capacity:
-			if s["stock"]["pienso_premium"] >= need:
+			if food == "heno":
+				if s["stock"]["heno"] >= need:
+					s["stock"]["heno"] -= need
+					got_food = true
+			elif s["stock"]["pienso_premium"] >= need:
 				s["stock"]["pienso_premium"] -= need
 				got_food = true
 				a["health"] = mini(100, a["health"] + 2)
@@ -627,12 +634,45 @@ func _end_month() -> PackedStringArray:
 # Avisos y animales
 # =====================================================================
 
+## Ración diaria (kg) y comida de cada animal según su especie.
+func feed_need(a: Dictionary) -> float:
+	return Catalog.FEED_PER_DAY[a["size"]] * Catalog.SPECIES.get(a["species"], {}).get("factor", 1.0)
+
+
+## Consumo diario total de una comida ("pienso" o "heno").
+func daily_need(food: String) -> float:
+	var t := 0.0
+	for a in sheltered():
+		if food_of(a) == food:
+			t += feed_need(a)
+	return t
+
+
+func food_of(a: Dictionary) -> String:
+	return Catalog.SPECIES.get(a["species"], {}).get("food", "pienso")
+
+
+func is_large(a: Dictionary) -> bool:
+	return Catalog.SPECIES.get(a["species"], {}).get("large", false)
+
+
+## Especie de un animal nuevo: perros y gatos siempre; conejos y granja solo si hay dónde alojarlos.
+func _random_species() -> String:
+	var r := rng.randf()
+	if has_building("establo") and r < 0.12:
+		var f := rng.randf()
+		return "cabra" if f < 0.5 else ("burro" if f < 0.8 else "caballo")
+	if has_building("conejera") and r < 0.24:
+		return "conejo"
+	return "gato" if rng.randf() < 0.3 else "perro"
+
+
 func _make_animal(opts: Dictionary) -> Dictionary:
-	var species: String = opts.get("species", "gato" if rng.randf() < 0.3 else "perro")
-	var names: Array = CAT_NAMES if species == "gato" else DOG_NAMES
+	var species: String = opts.get("species", _random_species())
+	var names: Array = {"gato": CAT_NAMES, "conejo": RABBIT_NAMES, "cabra": FARM_NAMES, "burro": FARM_NAMES, "caballo": FARM_NAMES}.get(species, DOG_NAMES)
 	var size: String = opts.get("size", "")
 	if size == "":
-		size = "pequeño" if species == "gato" else ["pequeño", "mediano", "grande"][rng.randi() % 3]
+		size = Catalog.SPECIES.get(species, {}).get("size", ["pequeño", "mediano", "grande"][rng.randi() % 3])
 	var energies := ["tranquilo", "enérgico", "miedoso", "sociable"]
 	var bad: bool = rng.randf() < 0.3 or opts.get("injured", false)
 	var a := {
@@ -686,7 +726,7 @@ func _new_call(opts: Dictionary) -> void:
 	s["animals"].append(a)
 	var urgent: bool = a["injured"] or a["health"] < 40
 	var who: String = ["Una vecina", "Un vecino", "La Policía Local", "Un conductor", "El ayuntamiento", "Una familia"][rng.randi() % 6]
-	var desc := "%s avisa: %s %s %s en %s" % [who, "perro" if a["species"] == "perro" else "gato",
+	var desc := "%s avisa: %s %s %s en %s" % [who, a["species"],
 		a["size"], "herido" if a["injured"] else ("en mal estado" if a["health"] < 40 else "abandonado"), spot["name"]]
 	s["calls"].append({"id": a["id"], "animal": a["id"], "place": spot["name"], "desc": desc,
 		"urgent": urgent, "deadline": s["day"] + (0 if urgent else 1)})
@@ -728,6 +768,11 @@ func pick_up(id: int) -> String:
 	var a := animal(id)
 	if a.is_empty() or not a["location"] in ["calle", "escapado"]:
 		return ""
+	var sp: Dictionary = Catalog.SPECIES.get(a["species"], {})
+	if sp.get("needs", "") != "" and not has_building(sp["needs"]):
+		return "No tienes dónde alojar un %s (necesitas: %s). Deriva el aviso a otra protectora." % [a["species"], sp["needs"]]
+	if sp.get("trailer", false) and (not has_equipment("remolque") or s["vehicle"] in ["a_pie", "bici"]):
+		return "Para llevar un %s necesitas el remolque para équidos y un coche o furgoneta." % a["species"]
 	if carried().size() >= capacity():
 		return "No te caben más animales (%s: %d). Consigue un vehículo mayor." % [vehicle()["name"], capacity()]
 	if a["size"] == "grande" and s["vehicle"] == "a_pie" and a["injured"]:
@@ -886,6 +931,8 @@ func apply_service(id: int, service: String, own: bool) -> String:
 	if own and not can_do_own(service):
 		return "Aún no puedes hacer esto en el refugio."
 	var price := service_price(service, own)
+	if not own and is_large(a) and a["location"] == "refugio":
+		price += Catalog.LARGE_VET_TRAVEL  # el veterinario de grandes animales viene al refugio
 	if not can_afford(price):
 		return "No tienes dinero suficiente (%d €)." % price
 	match service:
@@ -1044,10 +1091,14 @@ func _generate_requests(next_morning: bool = false) -> void:
 		chance += 0.15
 	for i in 3:
 		if s["requests"].size() < 4 and rng.randf() < chance:
-			var species := "gato" if rng.randf() < 0.3 else "perro"
+			var species := _random_species()
 			var homes := ["piso pequeño", "piso con terraza", "casa con jardín", "casa de campo"]
 			var home: String = homes[rng.randi() % homes.size()]
-			var sizes := ["pequeño"] if species == "gato" else (["pequeño", "mediano"] if home.begins_with("piso") else ["mediano", "grande"])
+			if Catalog.SPECIES[species].get("large", false):
+				home = "casa de campo" if rng.randf() < 0.5 else "finca con terreno"
+			var sizes := ["pequeño", "mediano"] if home.begins_with("piso") else ["mediano", "grande"]
+			if Catalog.SPECIES[species].has("size"):
+				sizes = [Catalog.SPECIES[species]["size"]]
 			var families := ["Familia García", "Pareja joven", "Señora jubilada", "Familia con niños", "Estudiante", "Pareja de jubilados", "Familia López", "Chico que vive solo"]
 			var rq_new := {
 				"id": s["next_id"],
@@ -1783,6 +1834,8 @@ func load_game() -> bool:
 	for k in ["visits", "consequences", "returns"]:
 		if not s.has(k):
 			s[k] = []  # partidas de versiones anteriores
+	if not s["stock"].has("heno"):
+		s["stock"]["heno"] = 0.0
 	changed.emit()
 	world_changed.emit()
 	return true

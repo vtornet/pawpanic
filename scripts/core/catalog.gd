@@ -24,6 +24,18 @@ const LANDS := [
 	{"id": "finca", "tier": 4, "name": "Comprar la finca colindante", "price": 65000, "size": 70, "desc": "Gran refugio y granja."},
 ]
 
+## Especies: qué comen (factor sobre la ración por tamaño), qué instalación necesitan,
+## su tamaño y si hace falta remolque para transportarlas.
+const SPECIES := {
+	"perro": {"name": "perro", "food": "pienso", "factor": 1.0, "needs": ""},
+	"gato": {"name": "gato", "food": "pienso", "factor": 0.6, "needs": "", "size": "pequeño"},
+	"conejo": {"name": "conejo", "food": "heno", "factor": 0.6, "needs": "conejera", "size": "pequeño"},
+	"cabra": {"name": "cabra", "food": "heno", "factor": 3.0, "needs": "establo", "size": "mediano", "large": true},
+	"burro": {"name": "burro", "food": "heno", "factor": 7.0, "needs": "establo", "size": "grande", "large": true, "trailer": true},
+	"caballo": {"name": "caballo", "food": "heno", "factor": 11.0, "needs": "establo", "size": "grande", "large": true, "trailer": true},
+}
+const LARGE_VET_TRAVEL := 15  # suplemento por servicio cuando el veterinario viene al refugio
+
 const STARTER_BUILDING := {"name": "Caseta básica", "price": 4500, "slots": 4}
 
 ## Construcciones. "req_tier" = terreno mínimo.
@@ -38,6 +50,8 @@ const BUILDINGS := [
 	{"id": "almacen", "name": "Almacén", "price": 3000, "req_tier": 2, "desc": "10 % de descuento en pienso y limpieza."},
 	{"id": "quirofano", "name": "Quirófano", "price": 15000, "req_tier": 4, "desc": "Esterilizaciones propias."},
 	{"id": "placas", "name": "Placas solares", "price": 7000, "req_tier": 3, "desc": "Reduce los gastos fijos mensuales."},
+	{"id": "conejera", "name": "Conejera (+6 plazas para conejos)", "price": 1200, "slots": 6, "req_tier": 1, "desc": "Empezarán a llegar avisos de conejos abandonados."},
+	{"id": "establo", "name": "Establo con cuadras (+4 plazas para animales de granja)", "price": 12000, "slots": 4, "req_tier": 4, "desc": "Cabras, burros y caballos. Los grandes necesitan remolque."},
 ]
 
 ## Vehículos: capacidad de animales y velocidad (m/s).
@@ -53,6 +67,7 @@ const EQUIPMENT := [
 	{"id": "lector", "name": "Lector de chips", "price": 450, "desc": "Lee el chip al recoger, sin ir al veterinario."},
 	{"id": "rastreador", "name": "Rastreadores GPS para collares", "price": 1200, "desc": "Posición continua de los animales escapados con chip."},
 	{"id": "trampa", "name": "Jaula trampa", "price": 180, "desc": "Captura segura de animales esquivos."},
+	{"id": "remolque", "name": "Remolque para équidos", "price": 3800, "desc": "Para transportar burros y caballos. Necesita coche o furgoneta."},
 ]
 
 ## Servicios. "ext" = precio externo; "own" = con instalación y personal propios.
@@ -74,6 +89,7 @@ const PRODUCTS := [
 	{"id": "pienso_premium", "name": "Saco de pienso premium 15 kg", "price": 55, "amount": 15.0, "unit": "kg", "premium": true},
 	{"id": "limpieza", "name": "Lote de productos de limpieza", "price": 25, "amount": 10.0, "unit": "usos"},
 	{"id": "arena", "name": "Saco de arena para gatos", "price": 9, "amount": 10.0, "unit": "usos"},
+	{"id": "heno", "name": "Paca de heno 20 kg", "price": 14, "amount": 20.0, "unit": "kg"},
 ]
 
 const STAFF := [
