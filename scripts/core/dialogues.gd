@@ -29,6 +29,8 @@ static func talk(id: String) -> Dictionary:
 		return _staff(id)
 	if id.begins_with("adoptante_"):
 		return _adopter(int(id.get_slice("_", 1)))
+	if id.begins_with("vecino_"):
+		return _neighbor(int(id.get_slice("_", 1)))
 	if id.begins_with("visita_"):
 		return _visit(int(id.get_slice("_", 1)))
 	return {"text": "...", "options": []}
@@ -222,6 +224,41 @@ static func _adopter(request_id: int) -> Dictionary:
 		return {"text": Game.send_visitor_home(request_id), "options": [["Adiós", ""]]}])
 	options.append(["Un momento, ahora vuelvo", ""])
 	return {"text": text, "options": options, "who": rq["who"]}
+
+
+## Vecinos del pueblo: charla, pistas sobre animales sueltos y algún donativo.
+static func _neighbor(n: int) -> Dictionary:
+	var lines: Array = []
+	if Game.s["step"] != "jugando":
+		return {"text": "¡Buenos días!", "options": [["Adiós", ""]]}
+	var street: Array = Game.animals_at("calle")
+	if not street.is_empty() and randf() < 0.6:
+		var a: Dictionary = street[randi() % street.size()]
+		lines.append("Oye, ¿tú eres la de la protectora? Esta mañana he visto un %s suelto por %s. Daba pena verlo." % [a["species"], a["origin"]])
+	var esc: Array = Game.animals_at("escapado")
+	if not esc.is_empty():
+		lines.append("¿Buscáis a %s? Me ha parecido verlo correteando por ahí, cerca del camino." % esc[0]["name"])
+	var key := "vecino_regalo_%d_%d" % [Game.s["day"], n]
+	if lines.is_empty() and randf() < 0.2 and not Game.s["stats"].has(key):
+		Game.s["stats"][key] = 1
+		var euros := randi_range(1, 4) * 5
+		Game._earn(euros, "Donativo de un vecino")
+		Game.changed.emit()
+		return {"text": "Toma, hija, %d euros para pienso. No es mucho, pero hacéis una labor muy bonita." % euros, "options": [["¡Muchas gracias!", ""]]}
+	if lines.is_empty():
+		lines = [
+			"¿Tú eres la de la protectora? ¡Qué labor más bonita hacéis!",
+			"Mi cuñado quiere adoptar un perro. Le diré que os llame.",
+			"Ayer vi a una familia salir de vuestro refugio con un perrito. ¡Qué contentos iban!",
+			"Hay que ver la de gente que abandona animales. Luego que si esto, que si lo otro...",
+			"Si necesitáis mantas viejas, yo tengo un montón en el trastero.",
+			"Mi perra es de vuestra protectora, ¿sabes? La mejor decisión de mi vida.",
+		]
+		if Game.s["reputation"] < 30:
+			lines.append("Se oyen cosas del refugio... que si los animales no están bien atendidos. Yo no sé.")
+		if Game.occupancy() > Game.slots():
+			lines.append("Se oyen muchos ladridos desde vuestro refugio, ¿eh? Algún vecino ya se está quejando.")
+	return {"text": _pick(lines), "options": [["Adiós", ""]]}
 
 
 ## Dueños que vienen a recoger y familias que vienen a devolver.

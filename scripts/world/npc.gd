@@ -13,6 +13,10 @@ var _head: Node3D
 var _torso: Node3D
 var _arm_l: Node3D
 var _arm_r: Node3D
+var _leg_l: Node3D
+var _leg_r: Node3D
+var walking := false   # lo activa quien lo mueve (vecinos que pasean)
+var _body: StaticBody3D
 var _t := 0.0
 var _seed := 0.0
 
@@ -42,6 +46,7 @@ func _build(look: Dictionary) -> void:
 	var hair: Color = look.get("hair", Color(0.2, 0.14, 0.1))
 	# Colisión para no atravesarlo.
 	var body := StaticBody3D.new()
+	_body = body
 	var col := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.3
@@ -50,10 +55,17 @@ func _build(look: Dictionary) -> void:
 	col.position.y = 0.85
 	body.add_child(col)
 	add_child(body)
-	# Piernas.
+	# Piernas (con cadera para poder andar).
 	for x in [-0.12, 0.12]:
-		add_child(Shapes.box(Vector3(0.2, 0.8, 0.22), pants, Vector3(x, 0.4, 0)))
-		add_child(Shapes.box(Vector3(0.22, 0.1, 0.3), Color(0.15, 0.12, 0.1), Vector3(x, 0.05, -0.04)))
+		var hip := Node3D.new()
+		hip.position = Vector3(x, 0.8, 0)
+		add_child(hip)
+		hip.add_child(Shapes.box(Vector3(0.2, 0.8, 0.22), pants, Vector3(0, -0.4, 0)))
+		hip.add_child(Shapes.box(Vector3(0.22, 0.1, 0.3), Color(0.15, 0.12, 0.1), Vector3(0, -0.75, -0.04)))
+		if x < 0:
+			_leg_l = hip
+		else:
+			_leg_r = hip
 	# Torso (se mueve al respirar).
 	_torso = Node3D.new()
 	_torso.position.y = 0.8
@@ -97,8 +109,20 @@ func _build(look: Dictionary) -> void:
 	add_child(l)
 
 
+## Los que pasean no bloquean al jugador.
+func set_solid(value: bool) -> void:
+	_body.collision_layer = 1 if value else 0
+
+
 func _process(delta: float) -> void:
 	_t += delta
+	var swing := sin(_t * 7.0) * 0.5 if walking else 0.0
+	_leg_l.rotation.x = lerpf(_leg_l.rotation.x, swing, clampf(delta * 10.0, 0.0, 1.0))
+	_leg_r.rotation.x = lerpf(_leg_r.rotation.x, -swing, clampf(delta * 10.0, 0.0, 1.0))
+	if walking:
+		_arm_l.rotation.x = -swing * 0.6
+		_arm_r.rotation.x = swing * 0.6
+		return
 	# Respiración y brazos.
 	_torso.scale.y = 1.0 + sin(_t * 1.6 + _seed) * 0.012
 	_arm_l.rotation.x = sin(_t * 0.9 + _seed) * 0.05

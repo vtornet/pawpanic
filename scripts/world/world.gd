@@ -18,6 +18,7 @@ const PLACES := {
 }
 
 var player: PlayerController
+var ambience: Ambience
 var _street: Node3D
 var _shelter: Node3D
 var _street_nodes := {}   # id -> Node3D
@@ -107,10 +108,18 @@ func _build_environment() -> void:
 	sun.light_energy = 0.85
 	add_child(sun)
 
+	# Sol según la hora, farolas, vecinos y coches.
+	ambience = Ambience.new()
+	ambience.name = "Ambiente"
+	add_child(ambience)
+	ambience.setup(e, sun, mat)
+	ambience.talk.connect(talk.emit)
+
 	add_child(Shapes.wall(Vector3(340, 1, 340), Vector3(0, -0.5, 0), Color(0.45, 0.62, 0.32)))
 	# Carreteras principales en cruz y anillo.
 	var road := Color(0.3, 0.3, 0.32)
-	add_child(Shapes.box(Vector3(8, 0.05, 320), road, Vector3(0, 0.02, 0)))
+	# La carretera norte-sur termina en el camino del refugio (las parcelas están al sur).
+	add_child(Shapes.box(Vector3(8, 0.05, 195), road, Vector3(0, 0.02, -62.5)))
 	add_child(Shapes.box(Vector3(320, 0.05, 8), road, Vector3(0, 0.02, 0)))
 	for z in [-110.0, 110.0]:
 		add_child(Shapes.box(Vector3(240, 0.05, 6), road, Vector3(0, 0.02, z)))

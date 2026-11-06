@@ -10,6 +10,7 @@ var _fails: PackedStringArray = []
 func run(world: World, ui: GameUI) -> void:
 	Game.rng.seed = 12345
 	await _frames(2)
+	_check(world.ambience != null and get_tree().get_nodes_in_group("npc").size() >= 10, "el mundo debería haberse construido entero (ambiente y personajes)")
 
 	# --- Arranque ---
 	_check(not Game.register("ab"), "un nombre de 2 letras no debería valer")
@@ -119,7 +120,7 @@ func run(world: World, ui: GameUI) -> void:
 	# --- Personajes: todos tienen algo que decir y su panel se abre ---
 	var npcs := get_tree().get_nodes_in_group("npc")
 	_check(npcs.size() >= 7, "debería haber personajes en los edificios y el refugio (%d)" % npcs.size())
-	for id in Dialogues.PEOPLE.keys() + ["staff_voluntario_0", "staff_cuidador_0"]:
+	for id in Dialogues.PEOPLE.keys() + ["staff_voluntario_0", "staff_cuidador_0", "vecino_0", "vecino_3"]:
 		var d := Dialogues.talk(id)
 		_check(d["text"] != "" and d["text"] != "...", "%s debería decir algo" % id)
 		ui.open_dialog(id)

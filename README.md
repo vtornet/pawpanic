@@ -42,6 +42,8 @@ El diseño completo está en [`docs/GDD.md`](docs/GDD.md).
 
 Todos los edificios tienen interior y personas con las que hablar (E): Rocío en la recepción y la Dra. Carmen en la consulta de la clínica, Inma en la peluquería, Manolo en la tienda, y Antonio (banco), Pilar (registro) y el agente Ruiz (SEPRONA) en el ayuntamiento. Te cuentan cosas según tu situación y te dan acceso a sus servicios. En el refugio, tus voluntarios y empleados te avisan si falta pienso, si hay algún animal enfermo o si no cabéis.
 
+El pueblo tiene vida: **vecinos** que pasean (habla con ellos: a veces han visto un animal suelto o te dan un donativo) y **coches** que circulan, así que cuidado al cruzar. El sol avanza con la hora y al atardecer se encienden las farolas.
+
 Si un animal **con chip** se escapa, verás su señal de forma intermitente (continua con el rastreador). **Sin chip**, se pierde.
 Si un animal con chip llega con **indicios de maltrato**, puedes denunciar al propietario en el SEPRONA.
 Tres cuotas del préstamo sin pagar o una reputación de 0 terminan la partida. Se guarda al final de cada día.
@@ -55,6 +57,7 @@ scripts/world/world.gd     Pueblo, refugio que crece, animales en la calle, inte
 scripts/world/player.gd    Jugador en primera / tercera persona y vehículos
 scripts/world/interiors.gd   Interiores de los edificios (clínica, peluquería, tienda, ayuntamiento, caseta)
 scripts/world/animal_mesh.gd Modelo provisional de perros y gatos
+scripts/world/ambience.gd  Sol según la hora, farolas, vecinos que pasean y coches
 scripts/world/npc.gd       Personajes (modelo, animación, mirar al jugador)
 scripts/core/dialogues.gd  Qué dice cada personaje según la partida
 scripts/world/interactable.gd

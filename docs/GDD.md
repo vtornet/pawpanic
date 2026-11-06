@@ -253,6 +253,8 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 - [x] Subvención municipal con requisitos e inspección
 - [x] Eventos: ola de calor, incendio forestal, inundación, brote de parvovirus, camada abandonada, temporada de caza
 - [x] Cierre de día y de mes, guardado y carga
+- [x] Paso del día: el sol sale, recorre el cielo y se pone (atardecer anaranjado), y las farolas se encienden por la tarde
+- [x] Pueblo con vida: vecinos que pasean y con los que se puede hablar (pistas sobre animales sueltos, algún donativo, comentarios según la reputación) y coches que circulan y frenan ante el jugador
 - [x] Dueños y devoluciones en persona: el dueño de un animal con chip pide cita, viene, se lo entregas (a veces con recompensa) y se va con él; si no le atiendes, vuelve otro día. Quien devuelve viene con el animal y explica por qué: lo recibes o le das consejos para que lo intente otra vez; si nadie le atiende, lo deja atado a la puerta
 - [x] Adoptantes no aptos (cazador, guarda atado, criador, regalo impulsivo, acumulador): dejan pistas al hablar y en la entrevista; si se les da el animal, días después aparece abandonado y herido (y el chip permite denunciarles), lo venden para criar, lo devuelven o hay una intervención por acumulación. Esterilizar protege frente a los criadores
 - [x] Las familias adoptantes visitan el refugio en persona a una hora concertada: cuentan qué buscan, conocen al animal, reaccionan según el encaje y se marchan con él; si nadie les atiende, se van
