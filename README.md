@@ -46,6 +46,8 @@ Cada **ampliación del refugio** tiene interior y se usa desde dentro: en la **c
 
 El pueblo tiene vida: **vecinos** que pasean (habla con ellos: a veces han visto un animal suelto o te dan un donativo) y **coches** que circulan, así que cuidado al cruzar. El sol avanza con la hora y al atardecer se encienden las farolas.
 
+**Fauna silvestre**: a veces el aviso es de un erizo, un ave rapaz o una tortuga heridos. Son protegidos: no pueden quedarse en el refugio. Llévalos el mismo día al **Centro de Recuperación de Fauna**, junto al río (carretera de circunvalación oeste), y entrégaselos a Lucía, su técnica.
+
 **Seguimiento post-adopción**: en la tablet (Adopciones) puedes llamar o visitar a las familias del último mes. Si algo va mal, dales consejos o recupera al animal: el contrato de adopción lo permite. Una visita destapa a quien te engañó.
 
 **Más especies**: con la **conejera** (barata, desde el principio) empezarán a llegar conejos, y con el **establo** de la finca, cabras, burros y caballos. Comen **heno**; para burros y caballos necesitas el **remolque**, y como no caben en la clínica, el veterinario de grandes animales viene al refugio (con un pequeño suplemento).

@@ -82,6 +82,7 @@ func _act(style: String) -> void:
 	for a in Game.animals_at("escapado"):
 		for i in 3:
 			Game.pick_up(a["id"])
+	Game.deliver_wildlife()  # la fauna silvestre, al centro de recuperación
 	# Clínica.
 	for a in Game.carried():
 		Game.apply_service(a["id"], "revision", false)

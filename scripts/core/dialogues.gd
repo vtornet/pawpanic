@@ -11,6 +11,7 @@ const PEOPLE := {
 	"banco": {"name": "Antonio", "role": "empleado del banco"},
 	"registro": {"name": "Pilar", "role": "funcionaria"},
 	"seprona": {"name": "Agente Ruiz", "role": "SEPRONA"},
+	"crea": {"name": "Lucía Márquez", "role": "técnica del centro de recuperación"},
 }
 
 const STAFF_NAMES := ["Lucía", "Javi", "Marisa", "Paco", "Sara", "Rafa", "Elena", "Curro", "Alba", "Juanma"]
@@ -25,6 +26,7 @@ static func talk(id: String) -> Dictionary:
 		"banco": return _banco()
 		"registro": return _registro()
 		"seprona": return _seprona()
+		"crea": return _crea()
 	if id.begins_with("staff_"):
 		return _staff(id)
 	if id.begins_with("adoptante_"):
@@ -391,6 +393,22 @@ static func _meet(request_id: int, animal_id: int) -> Dictionary:
 			return {"text": Game.adopt(request_id, animal_id), "options": [["¡Hasta pronto!", ""]]}],
 		["Mejor os enseño otro", func() -> Dictionary: return _adopter(request_id)],
 	]}
+
+
+static func _crea() -> Dictionary:
+	var wild: Array = Game.carried().filter(Game.is_wild)
+	if not wild.is_empty():
+		var names := ", ".join(PackedStringArray(wild.map(func(a: Dictionary) -> String: return a["name"].to_lower())))
+		return {"text": "¿Nos traes %s? Déjame ver... Has hecho muy bien en no llevarlo al refugio: la fauna silvestre necesita manos expertas y volver a su medio." % names,
+			"options": [["Entregar al centro", func() -> Dictionary:
+				return {"text": Game.deliver_wildlife(), "options": [["Adiós", ""]]}], ["Adiós", ""]]}
+	var lines := [
+		"Aquí recuperamos fauna silvestre: rapaces, erizos, tortugas... Si te avisan de alguno herido, tráelo cuanto antes. No lo alimentes ni le des agua por tu cuenta.",
+		"Los erizos atropellados son de lo que más nos llega en verano. Y en los incendios, de todo.",
+		"La fauna silvestre no se puede tener en casa ni en un refugio de animales domésticos: es ilegal y además no sobreviven.",
+		"Las tortugas moras están protegidas. Si alguien tiene una en casa, que nos la traiga sin miedo.",
+	]
+	return {"text": _pick(lines), "options": [["Adiós", ""]]}
 
 
 static func _staff(id: String) -> Dictionary:

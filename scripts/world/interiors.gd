@@ -199,6 +199,33 @@ static func town_hall(open: Callable, talk: Callable) -> Node3D:
 
 
 # ---------------------------------------------------------------------
+# Centro de recuperación de fauna (CREA)
+# ---------------------------------------------------------------------
+static func wildlife_center(open: Callable, talk: Callable) -> Node3D:
+	var r := room(11.0, 8.0, 3.6, Color(0.82, 0.9, 0.78), Color(0.7, 0.72, 0.68), Color(0.3, 0.45, 0.3))
+	# Jaulas de recuperación al fondo.
+	for i in 4:
+		var x := -3.6 + i * 2.4
+		r.add_child(Shapes.wall(Vector3(1.8, 1.4, 1.2), Vector3(x, 0.7, 3.0), Color(0.85, 0.85, 0.82)))
+		for b in 5:
+			r.add_child(Shapes.box(Vector3(0.03, 1.0, 0.03), Color(0.3, 0.32, 0.3), Vector3(x - 0.7 + b * 0.35, 0.75, 2.38)))
+	# Una rapaz en su percha y una tortuga en su recinto.
+	r.add_child(Shapes.box(Vector3(1.0, 0.06, 0.06), Color(0.45, 0.3, 0.18), Vector3(4.0, 1.6, 1.4)))
+	r.add_child(Shapes.box(Vector3(0.06, 1.6, 0.06), Color(0.45, 0.3, 0.18), Vector3(4.0, 0.8, 1.4)))
+	r.add_child(Shapes.wall(Vector3(1.6, 0.3, 1.2), Vector3(-4.3, 0.15, -1.8), Color(0.55, 0.45, 0.3)))
+	# Mostrador y técnica.
+	r.add_child(Shapes.wall(Vector3(2.6, 1.0, 0.7), Vector3(1.5, 0.5, -1.0), Color(0.4, 0.55, 0.4)))
+	_sign(r, "CENTRO DE RECUPERACIÓN DE FAUNA", Vector3(0, 2.8, 3.8), 0.007)
+	var info: Dictionary = Dialogues.PEOPLE["crea"]
+	var n := Npc.create("crea", info["name"], info["role"], {"shirt": Color(0.35, 0.5, 0.3), "pants": Color(0.3, 0.3, 0.25),
+		"hair": Color(0.3, 0.2, 0.12), "long_hair": true, "vest": Color(0.3, 0.42, 0.25)})
+	n.position = Vector3(1.5, 0.06, -0.2)
+	n.talked.connect(talk)
+	r.add_child(n)
+	return r
+
+
+# ---------------------------------------------------------------------
 # Caseta del refugio: 4 caniles al fondo, comedero, armario de limpieza.
 # ---------------------------------------------------------------------
 const SHELTER_W := 11.0

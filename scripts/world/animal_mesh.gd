@@ -110,7 +110,46 @@ static func _build_other(a: Dictionary) -> Node3D:
 	return root
 
 
+## Fauna silvestre: erizo, ave rapaz y tortuga.
+static func _build_wild(a: Dictionary) -> Node3D:
+	var root := Node3D.new()
+	var vis := Node3D.new()
+	vis.name = "Vis"
+	root.add_child(vis)
+	match a["species"]:
+		"erizo":
+			vis.add_child(Shapes.box(Vector3(0.3, 0.2, 0.36), Color(0.35, 0.28, 0.2), Vector3(0, 0.12, 0)))
+			for i in 10:
+				var sp := Shapes.box(Vector3(0.03, 0.12, 0.03), Color(0.25, 0.2, 0.15), Vector3(-0.12 + (i % 5) * 0.06, 0.24, -0.1 + (i / 5) * 0.18))
+				sp.rotation.x = -0.4 + (i / 5) * 0.8
+				vis.add_child(sp)
+			vis.add_child(Shapes.box(Vector3(0.12, 0.1, 0.12), Color(0.7, 0.6, 0.5), Vector3(0, 0.08, -0.22)))
+			vis.add_child(Shapes.box(Vector3(0.04, 0.04, 0.03), Color(0.05, 0.05, 0.05), Vector3(0, 0.08, -0.29)))
+		"ave":
+			var brown := Color(0.5, 0.35, 0.2)
+			vis.add_child(Shapes.box(Vector3(0.18, 0.28, 0.18), brown, Vector3(0, 0.22, 0)))
+			vis.add_child(Shapes.box(Vector3(0.14, 0.13, 0.14), brown.lightened(0.2), Vector3(0, 0.42, -0.02)))
+			vis.add_child(Shapes.box(Vector3(0.04, 0.04, 0.06), Color(0.9, 0.75, 0.2), Vector3(0, 0.4, -0.11)))
+			for x in [-0.12, 0.12]:
+				var wing := Shapes.box(Vector3(0.24, 0.04, 0.16), brown.darkened(0.2), Vector3(x * 1.4, 0.24, 0.02))
+				wing.rotation.z = signf(x) * (0.9 if x > 0 else 0.2)  # un ala caída: está herida
+				vis.add_child(wing)
+				vis.add_child(Shapes.box(Vector3(0.03, 0.1, 0.03), Color(0.9, 0.75, 0.2), Vector3(x * 0.4, 0.05, 0)))
+			vis.add_child(Shapes.box(Vector3(0.1, 0.03, 0.14), brown.darkened(0.3), Vector3(0, 0.12, 0.12)))
+		"tortuga":
+			vis.add_child(Shapes.cylinder(0.2, 0.14, Color(0.4, 0.38, 0.2), Vector3(0, 0.12, 0)))
+			vis.add_child(Shapes.cylinder(0.14, 0.08, Color(0.5, 0.45, 0.25), Vector3(0, 0.22, 0)))
+			vis.add_child(Shapes.box(Vector3(0.08, 0.07, 0.1), Color(0.45, 0.42, 0.3), Vector3(0, 0.08, -0.24)))
+			for x in [-0.14, 0.14]:
+				for z in [-0.12, 0.12]:
+					vis.add_child(Shapes.box(Vector3(0.06, 0.05, 0.06), Color(0.45, 0.42, 0.3), Vector3(x, 0.03, z)))
+	vis.set_meta("legs", [])
+	return root
+
+
 static func build(a: Dictionary) -> Node3D:
+	if a["species"] in ["erizo", "ave", "tortuga"]:
+		return _build_wild(a)
 	if a["species"] in ["conejo", "cabra", "burro", "caballo"]:
 		return _build_other(a)
 	var root := Node3D.new()

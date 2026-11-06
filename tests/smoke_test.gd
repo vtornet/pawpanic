@@ -431,6 +431,32 @@ func run(world: World, ui: GameUI) -> void:
 	await _frames(1)
 	ui.close_panel()
 
+	# --- Fauna silvestre: al centro de recuperación, nunca al refugio ---
+	var hog := Game._make_animal({"species": "erizo"})
+	hog["pos"] = Vector3(3, 0, 3)
+	Game.s["animals"].append(hog)
+	_check(Game.is_wild(hog) and hog["injured"], "el erizo debería ser fauna silvestre herida")
+	while not Game.carried().is_empty():
+		Game.deposit_all()
+		break
+	_check(Game.pick_up(hog["id"]).begins_with("Has recogido"), "debería poder recogerse el erizo")
+	Game.deposit_all()
+	_check(hog["location"] == "llevando", "la fauna silvestre no debería quedarse en el refugio")
+	_check(not Game.apply_service(hog["id"], "vacunas", false).begins_with(hog["name"]), "no se deberían poder vacunar animales salvajes")
+	_check(not Game.is_adoptable(hog), "la fauna silvestre no debería poder adoptarse")
+	var crea_npc: Array = get_tree().get_nodes_in_group("npc").filter(func(n: Node) -> bool: return n.npc_id == "crea")
+	_check(crea_npc.size() == 1, "debería existir la técnica del centro de recuperación")
+	var cd := Dialogues.talk("crea")
+	var rep_w: int = Game.s["reputation"]
+	cd["options"][0][1].call()
+	_check(Game.animal(hog["id"]).is_empty() and (Game.s["reputation"] > rep_w or rep_w == 100), "entregar el erizo al CREA debería sumar reputación")
+	var owl := Game._make_animal({"species": "ave"})
+	owl["pos"] = Vector3(3, 0, 3)
+	Game.s["animals"].append(owl)
+	Game.pick_up(owl["id"])
+	Game.end_day()
+	_check(Game.animal(owl["id"]).is_empty(), "si no se lleva al centro a tiempo, no sobrevive")
+
 	# --- Simulación larga: 200 días con decisiones sencillas ---
 	Game.s["money"] = 50000
 	for day in 200:
@@ -444,6 +470,7 @@ func run(world: World, ui: GameUI) -> void:
 			if not an.is_empty() and Game.occupancy() + Game.carried().size() < Game.slots():
 				an["skittish"] = false
 				Game.pick_up(an["id"])
+		Game.deliver_wildlife()
 		for an in Game.carried():
 			for sv in ["revision", "vacunas", "chip", "desparasitar", "tratamiento"]:
 				Game.apply_service(an["id"], sv, false)

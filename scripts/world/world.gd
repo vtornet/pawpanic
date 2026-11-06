@@ -15,6 +15,7 @@ const PLACES := {
 	"peluqueria": {"name": "Peluquería canina", "pos": Vector3(-30, 0, -20), "depth": 8.0, "height": 3.6},
 	"tienda": {"name": "Tienda de piensos", "pos": Vector3(30, 0, 22), "depth": 10.0, "height": 4.0},
 	"ayuntamiento": {"name": "Ayuntamiento · Banco · SEPRONA", "pos": Vector3(-30, 0, 22), "depth": 11.0, "height": 5.0},
+	"crea": {"name": "Centro de Recuperación de Fauna", "pos": Vector3(-102, 0, 35), "depth": 8.0, "height": 3.6, "face_west": true},
 }
 
 var player: PlayerController
@@ -187,9 +188,10 @@ func _build_town() -> void:
 			"peluqueria": building = Interiors.grooming(open_panel.emit, talk.emit)
 			"tienda": building = Interiors.shop(open_panel.emit, talk.emit)
 			"ayuntamiento": building = Interiors.town_hall(open_panel.emit, talk.emit)
+			"crea": building = Interiors.wildlife_center(open_panel.emit, talk.emit)
 		building.name = key
 		# La puerta (pared -Z local) mira hacia la carretera central (x = 0).
-		building.rotation.y = PI / 2 if pos.x > 0 else -PI / 2
+		building.rotation.y = PI / 2 if pos.x > 0 or pl.get("face_west", false) else -PI / 2
 		building.position = pos
 		add_child(building)
 		# Cartel grande en la fachada.
@@ -642,6 +644,8 @@ func _make_street_animal(a: Dictionary) -> Node3D:
 
 	var info := Interactable.create("", _on_pick.bind(a["id"]), 2.6)
 	info.prompt = "Recoger a %s (%s %s%s)" % [a["name"], a["species"], a["size"], ", herido" if a["injured"] else ""]
+	if Game.is_wild(a):
+		info.prompt = "Recoger al %s herido (fauna protegida: llévalo al centro de recuperación)" % a["name"].to_lower()
 	info.position.y = 0.5
 	root.add_child(info)
 

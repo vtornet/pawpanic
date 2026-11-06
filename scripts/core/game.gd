@@ -487,6 +487,13 @@ func end_day() -> void:
 			_rep(-4)
 			lines.append("‼ %s tuvo que ir a urgencias (300 €)" % a["name"])
 
+	# --- Fauna silvestre que no llegó al centro ---
+	for a in carried().duplicate():
+		if is_wild(a):
+			_remove_animal(a)
+			_rep(-1)
+			lines.append("El %s que llevabas no ha llegado a tiempo al centro de recuperación. No ha sobrevivido." % a["name"].to_lower())
+
 	# --- Casas de acogida ---
 	lines.append_array(_foster_day())
 
@@ -664,6 +671,17 @@ func is_large(a: Dictionary) -> bool:
 
 
 ## Especie de un animal nuevo: perros y gatos siempre; conejos y granja solo si hay dónde alojarlos.
+func is_wild(a: Dictionary) -> bool:
+	return Catalog.SPECIES.get(a["species"], {}).get("wild", false)
+
+
+## Especie de un aviso: a veces es fauna silvestre herida.
+func _call_species() -> String:
+	if rng.randf() < 0.1:
+		return ["erizo", "ave", "tortuga"][rng.randi() % 3]
+	return _random_species()
+
+
 func _random_species() -> String:
 	var r := rng.randf()
 	if has_building("establo") and r < 0.12:
@@ -676,6 +694,8 @@ func _random_species() -> String:
 
 func _make_animal(opts: Dictionary) -> Dictionary:
 	var species: String = opts.get("species", _random_species())
+	if Catalog.SPECIES.get(species, {}).get("wild", false):
+		return _make_wild(species)
 	var names: Array = {"gato": CAT_NAMES, "conejo": RABBIT_NAMES, "cabra": FARM_NAMES, "burro": FARM_NAMES, "caballo": FARM_NAMES}.get(species, DOG_NAMES)
 	var size: String = opts.get("size", "")
 	if size == "":
@@ -717,9 +737,30 @@ func _make_animal(opts: Dictionary) -> Dictionary:
 	return a
 
 
+## Fauna silvestre herida: siempre urgente, sin chip y sin dueño.
+const WILD_NAMES := {"erizo": ["Erizo"], "ave": ["Cernícalo", "Mochuelo", "Lechuza", "Ratonero"], "tortuga": ["Tortuga mora", "Galápago"]}
+
+
+func _make_wild(species: String) -> Dictionary:
+	var names: Array = WILD_NAMES[species]
+	var a := {
+		"id": s["next_id"], "name": names[rng.randi() % names.size()], "species": species, "size": "pequeño",
+		"energy": "miedoso", "age": rng.randi_range(1, 6), "sex": "macho" if rng.randf() < 0.5 else "hembra",
+		"health": rng.randi_range(25, 55), "nutrition": 50, "hygiene": 60, "mood": 30,
+		"reviewed": false, "chip": "no", "has_owner_chip": false, "vaccinated": false, "sterilized": false,
+		"dewormed": false, "injured": true, "sick": false, "abuse": false, "abuse_known": false, "skittish": false,
+		"location": "calle", "pos": Vector3.ZERO, "days_in": 0, "returned_count": 0, "owner_case": "", "owner_day": 0, "origin": "",
+	}
+	s["next_id"] += 1
+	return a
+
+
 func _new_call(opts: Dictionary) -> void:
 	if s["calls"].size() >= 6:
 		return
+	if not opts.has("species") and not opts.get("easy", false):
+		opts = opts.duplicate()
+		opts["species"] = _call_species()
 	var a := _make_animal(opts)
 	var spot: Dictionary
 	if opts.get("near", false):
@@ -735,6 +776,8 @@ func _new_call(opts: Dictionary) -> void:
 	var who: String = ["Una vecina", "Un vecino", "La Policía Local", "Un conductor", "El ayuntamiento", "Una familia"][rng.randi() % 6]
 	var desc := "%s avisa: %s %s %s en %s" % [who, a["species"],
 		a["size"], "herido" if a["injured"] else ("en mal estado" if a["health"] < 40 else "abandonado"), spot["name"]]
+	if is_wild(a):
+		desc = "%s avisa: %s herido en %s. Es fauna protegida: hay que llevarlo al centro de recuperación (CREA)." % [who, a["name"].to_lower(), spot["name"]]
 	s["calls"].append({"id": a["id"], "animal": a["id"], "place": spot["name"], "desc": desc,
 		"urgent": urgent, "deadline": s["day"] + (0 if urgent else 1)})
 	notify.emit("Nuevo aviso: " + desc, "aviso")
@@ -810,12 +853,20 @@ func pick_up(id: int) -> String:
 
 func deposit_all() -> String:
 	var n := 0
+	var wild := 0
 	for a in carried():
+		if is_wild(a):
+			wild += 1
+			continue
 		a["location"] = "refugio"
 		n += 1
 	if n == 0:
+		if wild > 0:
+			return "La fauna silvestre no puede quedarse en el refugio: es protegida. Llévala al centro de recuperación (CREA)."
 		return "No llevas ningún animal."
 	var msg := "Has dejado %d animal(es) en el refugio." % n
+	if wild > 0:
+		msg += " La fauna silvestre sigue contigo: llévala al CREA."
 	if occupancy() > slots():
 		msg += " ⚠ Hay más animales que plazas."
 	changed.emit()
@@ -898,6 +949,26 @@ func _foster_day() -> PackedStringArray:
 	return out
 
 
+## Entregar la fauna silvestre que llevas al centro de recuperación.
+func deliver_wildlife() -> String:
+	var wild := carried().filter(is_wild)
+	if wild.is_empty():
+		return ""
+	var names: PackedStringArray = []
+	for a in wild:
+		names.append(a["name"].to_lower())
+		_remove_animal(a)
+		_rep(3 if a["health"] >= 40 else 2)
+		s["stats"]["wild"] = s["stats"].get("wild", 0) + 1
+	advance_minutes(15)
+	changed.emit()
+	var msg := "«Gracias. Nos ocupamos de %s; cuando se recupere, lo devolveremos a su medio.»" % ", ".join(names)
+	if s["stats"]["wild"] == 3:
+		msg += " «Ya sois colaboradores habituales del centro. Os pondremos en nuestra web.»"
+		_rep(3)
+	return msg
+
+
 func take_out(id: int) -> String:
 	var a := animal(id)
 	if a.is_empty() or a["location"] != "refugio":
@@ -937,6 +1008,8 @@ func apply_service(id: int, service: String, own: bool) -> String:
 		return ""
 	if own and not can_do_own(service):
 		return "Aún no puedes hacer esto en el refugio."
+	if is_wild(a) and service != "tratamiento":
+		return "Es fauna silvestre: aquí solo se le pueden dar primeros auxilios (tratamiento). Llévalo al CREA."
 	var price := service_price(service, own)
 	if not own and is_large(a) and a["location"] == "refugio":
 		price += Catalog.LARGE_VET_TRAVEL  # el veterinario de grandes animales viene al refugio
@@ -1098,7 +1171,7 @@ func _generate_requests(next_morning: bool = false) -> void:
 		chance += 0.15
 	for i in 3:
 		if s["requests"].size() < 4 and rng.randf() < chance:
-			var species := _random_species()
+			var species := _random_species()  # nunca fauna silvestre
 			var homes := ["piso pequeño", "piso con terraza", "casa con jardín", "casa de campo"]
 			var home: String = homes[rng.randi() % homes.size()]
 			if Catalog.SPECIES[species].get("large", false):

@@ -33,6 +33,10 @@ const SPECIES := {
 	"cabra": {"name": "cabra", "food": "heno", "factor": 3.0, "needs": "establo", "size": "mediano", "large": true},
 	"burro": {"name": "burro", "food": "heno", "factor": 7.0, "needs": "establo", "size": "grande", "large": true, "trailer": true},
 	"caballo": {"name": "caballo", "food": "heno", "factor": 11.0, "needs": "establo", "size": "grande", "large": true, "trailer": true},
+	# Fauna silvestre: protegida, no se puede alojar ni adoptar; se lleva al centro de recuperación.
+	"erizo": {"name": "erizo", "food": "", "factor": 0.0, "needs": "", "size": "pequeño", "wild": true},
+	"ave": {"name": "ave rapaz", "food": "", "factor": 0.0, "needs": "", "size": "pequeño", "wild": true},
+	"tortuga": {"name": "tortuga", "food": "", "factor": 0.0, "needs": "", "size": "pequeño", "wild": true},
 }
 const LARGE_VET_TRAVEL := 15  # suplemento por servicio cuando el veterinario viene al refugio
 
