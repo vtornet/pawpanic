@@ -198,6 +198,58 @@ func run(world: World, ui: GameUI) -> void:
 	Game.refuse_adopter(8889)
 	_check(Game.s["reputation"] == r0, "rechazar a un no apto no debería restar")
 
+	# --- Dueño que viene a recoger a su animal ---
+	var lost := Game._make_animal({"species": "perro"})
+	lost["location"] = "refugio"
+	lost["has_owner_chip"] = true
+	lost["abuse"] = false
+	lost["reviewed"] = false
+	Game.s["animals"].append(lost)
+	Game.rng.seed = 1
+	Game.apply_service(lost["id"], "revision", false)
+	_check(lost["owner_case"] == "contactando", "debería contactarse con el dueño")
+	# Forzamos que el dueño lo quiera recuperar.
+	lost["owner_day"] = Game.s["day"]
+	var tries := 0
+	while lost.get("owner_case", "") == "contactando" and tries < 40:
+		Game.rng.seed = 100 + tries
+		Game._progress_owner_case(lost)
+		if lost["owner_case"] != "recogida":
+			lost["owner_case"] = "contactando"
+			lost["chip"] = "dueño"
+		tries += 1
+	_check(lost["owner_case"] == "recogida", "el dueño debería pedir cita para recogerlo")
+	var ov: Dictionary = Game.s["visits"].filter(func(v: Dictionary) -> bool: return v["kind"] == "dueño" and v["animal_id"] == lost["id"])[0]
+	ov["visit_at"] = Game.now_abs() + 5
+	Game.s["minute"] = 11 * 60
+	Game.advance_minutes(10)
+	_check(ov["state"] == "esperando", "el dueño debería llegar al refugio")
+	await _frames(2)
+	_check(get_tree().get_nodes_in_group("npc").any(func(n: Node) -> bool: return n.npc_id == "visita_%d" % ov["id"]), "el dueño debería verse en la entrada")
+	var od := Dialogues.talk("visita_%d" % ov["id"])
+	var to_owner: int = Game.s["stats"]["to_owner"]
+	od["options"][0][1].call()
+	_check(Game.s["stats"]["to_owner"] == to_owner + 1 and Game.animal(lost["id"]).is_empty(), "el dueño debería llevarse a su animal")
+
+	# --- Devoluciones en persona ---
+	var ret := Game._make_animal({})
+	ret["location"] = "adoptado"
+	var rv := Game._schedule_return(ret, "Ladra demasiado", "Pareja joven")
+	rv["visit_at"] = Game.now_abs() + 5
+	Game.advance_minutes(10)
+	_check(rv["state"] == "esperando", "la familia que devuelve debería llegar")
+	var rd := Dialogues.talk("visita_%d" % rv["id"])
+	_check("Ladra demasiado" in rd["text"], "deberían explicar por qué lo devuelven")
+	rd["options"][0][1].call()
+	_check(Game.animal(ret["id"]).get("location", "") == "refugio", "el animal devuelto debería volver al refugio")
+	var ret2 := Game._make_animal({})
+	var rv2 := Game._schedule_return(ret2, "Rompe cosas", "Familia López")
+	rv2["visit_at"] = Game.now_abs() + 5
+	Game.advance_minutes(10)
+	var mood_before: int = ret2["mood"]
+	Game.advance_minutes(200)
+	_check(Game.animal(ret2["id"]).get("location", "") == "refugio" and ret2["mood"] < mood_before, "si nadie les atiende, deberían dejarlo atado a la puerta")
+
 	# --- Simulación larga: 200 días con decisiones sencillas ---
 	Game.s["money"] = 50000
 	for day in 200:
@@ -264,6 +316,11 @@ func run(world: World, ui: GameUI) -> void:
 
 ## Atiende a las familias que esperan: rechaza a las sospechosas y adopta si hay encaje.
 func _bot_visitors() -> void:
+	for v in Game.person_visits():
+		if v["kind"] == "dueño":
+			Game.hand_over(v["id"])
+		else:
+			Game.take_back(v["id"])
 	for rq in Game.visitors():
 		if rq.get("suspect", "") != "":
 			Game.refuse_adopter(rq["id"])

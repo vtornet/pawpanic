@@ -219,7 +219,7 @@ func _update_hud() -> void:
 		Game.vehicle()["name"], car.size(), Game.capacity(),
 		("\n" + ", ".join(names)) if not names.is_empty() else "",
 		s["calls"].size(), Game.animals_at("escapado").size(),
-		"\n‼ Familias esperando en el refugio: %d" % Game.visitors().size() if not Game.visitors().is_empty() else ""]
+		"\n‼ Visitas esperando en el refugio: %d" % (Game.visitors().size() + Game.person_visits().size()) if not (Game.visitors().is_empty() and Game.person_visits().is_empty()) else ""]
 	_crosshair.visible = _open == ""
 
 
@@ -418,7 +418,7 @@ func _animal_line(a: Dictionary) -> String:
 	if a["sick"]: flags.append("ENFERMO")
 	if a["injured"]: flags.append("HERIDO")
 	if a["abuse_known"]: flags.append("maltrato")
-	var case_names := {"contactando": "contactando con el dueño", "decidir": "¿denunciar?", "denuncia": "denuncia en curso", "sin_respuesta": "dueño sin responder"}
+	var case_names := {"contactando": "contactando con el dueño", "decidir": "¿denunciar?", "denuncia": "denuncia en curso", "sin_respuesta": "dueño sin responder", "recogida": "su dueño viene a recogerlo"}
 	if a.get("owner_case", "") != "":
 		flags.append(case_names[a["owner_case"]])
 	return "%s · %s %s, %s, %d años · salud %d · nutrición %d · higiene %d · ánimo %d\n   %s" % [

@@ -253,6 +253,7 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 - [x] Subvención municipal con requisitos e inspección
 - [x] Eventos: ola de calor, incendio forestal, inundación, brote de parvovirus, camada abandonada, temporada de caza
 - [x] Cierre de día y de mes, guardado y carga
+- [x] Dueños y devoluciones en persona: el dueño de un animal con chip pide cita, viene, se lo entregas (a veces con recompensa) y se va con él; si no le atiendes, vuelve otro día. Quien devuelve viene con el animal y explica por qué: lo recibes o le das consejos para que lo intente otra vez; si nadie le atiende, lo deja atado a la puerta
 - [x] Adoptantes no aptos (cazador, guarda atado, criador, regalo impulsivo, acumulador): dejan pistas al hablar y en la entrevista; si se les da el animal, días después aparece abandonado y herido (y el chip permite denunciarles), lo venden para criar, lo devuelven o hay una intervención por acumulación. Esterilizar protege frente a los criadores
 - [x] Las familias adoptantes visitan el refugio en persona a una hora concertada: cuentan qué buscan, conocen al animal, reaccionan según el encaje y se marchan con él; si nadie les atiende, se van
 - [x] Personajes con conversaciones según la situación: recepcionista y veterinaria, peluquera, dependiente, banco, registro, SEPRONA, y voluntarios y empleados en el refugio (avisan de pienso, enfermos, sobreocupación...)
@@ -261,7 +262,7 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 **Pendiente**
 - [ ] Más especies (gatos implementados de forma básica; conejos, granja)
 - [ ] Interiores de las construcciones del refugio (consulta propia, quirófano, gatera, zona de limpieza): ahora son bloques
-- [ ] Más variedad de conversaciones; dueños que vienen en persona a recoger a su animal; devoluciones en persona
+- [ ] Más variedad de conversaciones; seguimiento post-adopción (visitas o llamadas a las familias)
 - [ ] Modelos, animaciones y sonido
 - [ ] Combustible, moral del personal, turnos
 - [ ] Más perfiles no aptos (peleas, reventa a laboratorios...) y seguimiento post-adopción para detectarlos a tiempo

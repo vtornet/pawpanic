@@ -27,7 +27,7 @@ var _staff_root: Node3D
 var _staff_sig := ""
 var _visitors_root: Node3D
 var _visitors_sig := ""
-var _visitor_nodes := {}  # request id -> Npc
+var _visitor_nodes := {}  # clave (adoptante_N / visita_N) -> nodo
 var _animals_sig := ""
 var _current: Interactable
 
@@ -62,6 +62,7 @@ func _ready() -> void:
 	Game.changed.connect(_sync_staff)
 	Game.changed.connect(_sync_visitors)
 	Game.adopted.connect(_on_adopted)
+	Game.departed.connect(_on_departed)
 	_sync()
 
 
@@ -404,51 +405,80 @@ func _visitor_spot(i: int) -> Vector3:
 	return Game.s["land_pos"] + Vector3(-3.0 + i * 3.0, 0.06, -half + 3.0)
 
 
+## Todas las personas que esperan en la entrada: familias que quieren adoptar,
+## dueños que vienen a recoger y familias que devuelven (con el animal al lado).
+func _waiting_people() -> Array:
+	var out := []
+	for rq in Game.visitors():
+		out.append({"key": "adoptante_%d" % rq["id"], "who": rq["who"], "role": "quiere adoptar", "look": _visitor_look(rq),
+			"kid": "niños" in rq["who"], "pet": {}})
+	for v in Game.person_visits():
+		var nm := Game.visit_animal_name(v)
+		out.append({"key": "visita_%d" % v["id"], "who": v["who"],
+			"role": "viene a recoger a %s" % nm if v["kind"] == "dueño" else "viene a devolver a %s" % nm,
+			"look": _visitor_look(v), "kid": false, "pet": v["animal"] if v["kind"] == "devolucion" else {}})
+	return out
+
+
 func _sync_visitors() -> void:
-	var list := Game.visitors()
-	var sig := ",".join(PackedStringArray(list.map(func(r: Dictionary) -> String: return str(r["id"]))))
+	var list := _waiting_people()
+	var sig := ",".join(PackedStringArray(list.map(func(r: Dictionary) -> String: return r["key"])))
 	if sig == _visitors_sig:
 		return
 	_visitors_sig = sig
 	var wanted := {}
 	for r in list:
-		wanted[r["id"]] = r
-	for id in _visitor_nodes.keys():
-		if not wanted.has(id):
-			_visitor_nodes[id].queue_free()
-			_visitor_nodes.erase(id)
+		wanted[r["key"]] = r
+	for key in _visitor_nodes.keys():
+		if not wanted.has(key):
+			_visitor_nodes[key].queue_free()
+			_visitor_nodes.erase(key)
 	var i := 0
-	for id in wanted:
-		var rq: Dictionary = wanted[id]
-		if not _visitor_nodes.has(id):
+	for key in wanted:
+		var p: Dictionary = wanted[key]
+		if not _visitor_nodes.has(key):
 			var root := Node3D.new()
-			var n := Npc.create("adoptante_%d" % id, rq["who"], "quiere adoptar", _visitor_look(rq))
+			var n := Npc.create(key, p["who"], p["role"], p["look"])
 			n.talked.connect(talk.emit)
 			root.add_child(n)
-			if "niños" in rq["who"]:
-				var kid := Npc.create("adoptante_%d" % id, "", "", {"shirt": Color(0.95, 0.85, 0.2), "pants": Color(0.3, 0.45, 0.8), "hair": _visitor_look(rq)["hair"]})
+			if p["kid"]:
+				var kid := Npc.create(key, "", "", {"shirt": Color(0.95, 0.85, 0.2), "pants": Color(0.3, 0.45, 0.8), "hair": p["look"]["hair"]})
 				kid.scale = Vector3.ONE * 0.6
 				kid.position = Vector3(0.8, 0, -0.2)
 				kid.talked.connect(talk.emit)
 				root.add_child(kid)
+			if not p["pet"].is_empty():
+				var pet := AnimalMesh.build(p["pet"])
+				pet.position = Vector3(0.9, 0, -0.5)
+				root.add_child(pet)
+				root.add_child(Shapes.box(Vector3(0.03, 0.03, 0.9), Color(0.8, 0.2, 0.2), Vector3(0.5, 0.75, -0.3)))  # correa
 			_visitors_root.add_child(root)
-			_visitor_nodes[id] = root
-		_visitor_nodes[id].global_position = _visitor_spot(i)
-		_visitor_nodes[id].rotation.y = PI  # mirando hacia la caseta
+			_visitor_nodes[key] = root
+		_visitor_nodes[key].global_position = _visitor_spot(i)
+		_visitor_nodes[key].rotation.y = PI  # mirando hacia la caseta
 		i += 1
 
 
 ## La familia se marcha con su nuevo compañero hacia la salida.
 func _on_adopted(rq: Dictionary, a: Dictionary) -> void:
+	_walk_away("adoptante_%d" % rq["id"], rq["who"], _visitor_look(rq), a)
+
+
+## El dueño se va con su animal.
+func _on_departed(v: Dictionary, a: Dictionary) -> void:
+	_walk_away("visita_%d" % v["id"], v["who"], _visitor_look(v), a)
+
+
+func _walk_away(key: String, who: String, look: Dictionary, a: Dictionary) -> void:
 	var start := _visitor_spot(0)
-	if _visitor_nodes.has(rq["id"]):
-		start = _visitor_nodes[rq["id"]].global_position
-		_visitor_nodes[rq["id"]].queue_free()
-		_visitor_nodes.erase(rq["id"])
+	if _visitor_nodes.has(key):
+		start = _visitor_nodes[key].global_position
+		_visitor_nodes[key].queue_free()
+		_visitor_nodes.erase(key)
 	var group := Node3D.new()
 	add_child(group)
 	group.global_position = start
-	var walker := Npc.create("adoptado_%d" % rq["id"], rq["who"], "", _visitor_look(rq))
+	var walker := Npc.create("se_va_" + key, who, "", look)
 	walker.remove_from_group("npc")
 	for c in walker.get_children():
 		if c is Interactable:

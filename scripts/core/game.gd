@@ -9,6 +9,7 @@ signal notify(text: String, kind: String)
 signal day_ended(summary: String)
 signal game_over(reason: String)
 signal adopted(request: Dictionary, animal: Dictionary)   # para que el mundo muestre a la familia marchándose
+signal departed(visit: Dictionary, animal: Dictionary)    # un dueño se va con su animal
 
 const SAVE_PATH := "user://partida.json"
 const MONTHS := ["septiembre", "octubre", "noviembre", "diciembre", "enero", "febrero",
@@ -76,6 +77,7 @@ func new_game() -> void:
 		"requests": [],
 		"returns": [],          # {animal, day}
 		"consequences": [],     # adopciones a quien no debía: {type, animal, day}
+		"visits": [],           # dueños que recogen y familias que devuelven, en persona
 		"next_id": 1,
 		"fed_today": false,
 		"cleaned_today": false,
@@ -478,14 +480,13 @@ func end_day() -> void:
 	for r in s["returns"].duplicate():
 		if r["day"] <= s["day"]:
 			s["returns"].erase(r)
-			var a: Dictionary = r["animal"]
-			a["location"] = "refugio"
-			a["mood"] = maxi(0, a["mood"] - 30)
-			a["returned_count"] += 1
-			s["animals"].append(a)
-			st["returned"] += 1
-			_rep(-1)
-			lines.append("↩ Han devuelto a %s: «%s»" % [a["name"], r["reason"]])
+			var v := _schedule_return(r["animal"], r["reason"], r.get("who", "La familia adoptante"))
+			lines.append("↩ %s ha llamado: quieren devolver a %s. Vendrán mañana." % [v["who"], r["animal"]["name"]])
+
+	# --- Visitas que se quedaron esperando al cerrar ---
+	for v in s["visits"].duplicate():
+		if v["state"] == "esperando":
+			lines.append(_visit_timeout(v))
 
 	# --- Consecuencias de adopciones a quien no debía ---
 	for c in s["consequences"].duplicate():
@@ -887,14 +888,14 @@ func _progress_owner_case(a: Dictionary) -> String:
 			return ""
 		var r := rng.randf()
 		if r < 0.5:
-			var reward := 0
-			if rng.randf() < 0.55:
-				reward = rng.randi_range(2, 20) * 10
-				_earn(reward, "Recompensa de un dueño")
-			_remove_animal(a)
-			s["stats"]["to_owner"] += 1
-			_rep(2)
-			return "🏠 El dueño de %s ha venido a recogerlo.%s" % [a["name"], " Nos ha dado %d € de recompensa." % reward if reward > 0 else ""]
+			a["owner_case"] = "recogida"
+			var owners := ["Familia Romero", "Señor Vázquez", "Carmen, la dueña", "Familia Domínguez", "Un chico joven", "Matrimonio mayor"]
+			var v := {"id": s["next_id"], "kind": "dueño", "who": owners[rng.randi() % owners.size()], "animal_id": a["id"],
+				"state": "pendiente", "visit_at": (s["day"] + 1) * 1440 + rng.randi_range(10 * 60, 18 * 60), "look": rng.randi()}
+			s["next_id"] += 1
+			s["visits"].append(v)
+			var m: int = v["visit_at"] % 1440
+			return "📞 El dueño de %s ha contestado: vendrá a recogerlo mañana a las %02d:%02d." % [a["name"], m / 60, m % 60]
 		if r < 0.8:
 			a["owner_case"] = ""
 			a["chip"] = "nuestro"
@@ -979,6 +980,7 @@ func visit_text(rq: Dictionary) -> String:
 ## Llegadas y esperas de las familias. Se llama cada vez que avanza el reloj.
 func _update_visits() -> void:
 	var now := now_abs()
+	_update_person_visits(now)
 	for rq in s["requests"].duplicate():
 		if not rq.has("visit_at"):  # partidas guardadas antes de las visitas
 			rq["visit_at"] = _visit_time(false)
@@ -994,6 +996,122 @@ func _update_visits() -> void:
 			_rep(-1)
 			notify.emit("%s se ha cansado de esperar y se ha ido." % rq["who"], "mal")
 			changed.emit()
+
+
+func _update_person_visits(now: int) -> void:
+	for v in s["visits"].duplicate():
+		if v["state"] == "pendiente" and now >= v["visit_at"] and s["minute"] < Catalog.DAY_END - 60:
+			v["state"] = "esperando"
+			v["wait_until"] = now + 150
+			var nm: String = visit_animal_name(v)
+			if v["kind"] == "dueño":
+				notify.emit("%s ha llegado al refugio para recoger a %s." % [v["who"], nm], "aviso")
+			else:
+				notify.emit("%s está en la puerta del refugio con %s: quieren devolverlo." % [v["who"], nm], "aviso")
+			changed.emit()
+		elif v["state"] == "esperando" and now > v["wait_until"]:
+			notify.emit(_visit_timeout(v), "mal")
+			changed.emit()
+
+
+## Qué pasa si nadie atiende una visita.
+func _visit_timeout(v: Dictionary) -> String:
+	if v["kind"] == "dueño":
+		v["state"] = "pendiente"
+		v["visit_at"] = (s["day"] + 1) * 1440 + rng.randi_range(10 * 60, 18 * 60)
+		return "%s se ha cansado de esperar. Volverá mañana a por %s." % [v["who"], visit_animal_name(v)]
+	# Devolución: lo dejan atado a la puerta.
+	s["visits"].erase(v)
+	var a: Dictionary = v["animal"]
+	a["location"] = "refugio"
+	a["mood"] = maxi(0, a["mood"] - 40)
+	a["returned_count"] += 1
+	s["animals"].append(a)
+	s["stats"]["returned"] += 1
+	_rep(-2)
+	world_changed.emit()
+	return "Nadie atendió a %s y han dejado a %s atado a la puerta del refugio. Está muy asustado." % [v["who"], a["name"]]
+
+
+func _schedule_return(a: Dictionary, reason: String, who: String) -> Dictionary:
+	var v := {"id": s["next_id"], "kind": "devolucion", "who": who, "animal": a, "reason": reason,
+		"state": "pendiente", "visit_at": (s["day"] + 1) * 1440 + rng.randi_range(10 * 60, 18 * 60), "look": rng.randi()}
+	s["next_id"] += 1
+	s["visits"].append(v)
+	return v
+
+
+func visit_animal_name(v: Dictionary) -> String:
+	if v["kind"] == "devolucion":
+		return v["animal"]["name"]
+	return animal(v["animal_id"]).get("name", "su animal")
+
+
+func person_visits() -> Array:
+	return s["visits"].filter(func(v: Dictionary) -> bool: return v["state"] == "esperando")
+
+
+## Entregar el animal a su dueño.
+func hand_over(visit_id: int) -> String:
+	var v := _find_id(s["visits"], visit_id)
+	if v.is_empty():
+		return ""
+	var a := animal(v["animal_id"])
+	if a.is_empty():
+		s["visits"].erase(v)
+		changed.emit()
+		return "«¿Cómo que no está?»"
+	if not a["location"] in ["refugio", "llevando"]:
+		return "«¿No está aquí? Bueno... esperaré un poco.»"
+	s["visits"].erase(v)
+	var reward := 0
+	if rng.randf() < 0.55:
+		reward = rng.randi_range(2, 20) * 10
+		_earn(reward, "Recompensa de un dueño")
+	_remove_animal(a)
+	s["stats"]["to_owner"] += 1
+	_rep(2)
+	departed.emit(v, a)
+	changed.emit()
+	var thanks := ["¡%s! ¡Ven aquí, bonito! No sabéis el disgusto que teníamos en casa.", "Ay, %s... Menos mal. Os estaré siempre agradecido.",
+		"¡%s! Se escapó por la valla del jardín, ya la hemos arreglado. Mil gracias."]
+	var t: String = thanks[rng.randi() % thanks.size()] % a["name"]
+	if reward > 0:
+		t += " Tomad, %d € para lo que necesitéis, por favor." % reward
+	return "«%s»" % t
+
+
+## Aceptar la devolución.
+func take_back(visit_id: int) -> String:
+	var v := _find_id(s["visits"], visit_id)
+	if v.is_empty():
+		return ""
+	s["visits"].erase(v)
+	var a: Dictionary = v["animal"]
+	a["location"] = "refugio"
+	a["mood"] = maxi(0, a["mood"] - 30)
+	a["returned_count"] += 1
+	s["animals"].append(a)
+	s["stats"]["returned"] += 1
+	_rep(-1)
+	changed.emit()
+	world_changed.emit()
+	return "«Lo sentimos mucho, de verdad. Era lo mejor para él.» %s vuelve al refugio, algo desanimado." % a["name"]
+
+
+## Darles consejos para que lo intenten de nuevo. A veces sale bien.
+func advise_keep(visit_id: int) -> String:
+	var v := _find_id(s["visits"], visit_id)
+	if v.is_empty():
+		return ""
+	s["visits"].erase(v)
+	var a: Dictionary = v["animal"]
+	changed.emit()
+	if rng.randf() < 0.55:
+		_rep(1)
+		return "«Vale... lo intentaremos con lo que nos has dicho. Gracias por la paciencia.» Se van con %s." % a["name"]
+	s["returns"].append({"animal": a, "day": s["day"] + rng.randi_range(3, 6), "reason": v["reason"], "who": v["who"]})
+	return "«Bueno... lo intentaremos, pero no prometemos nada.» Se van con %s." % a["name"]
 
 
 func visitors() -> Array:
@@ -1082,7 +1200,7 @@ func adopt(request_id: int, animal_id: int) -> String:
 	if rng.randf() < return_chance:
 		var reasons := ["No se adapta al piso", "Ladra demasiado", "Rompe cosas", "Se lleva mal con los niños",
 			"No tenemos tiempo para pasearlo", "Es más grande de lo que esperábamos"]
-		s["returns"].append({"animal": a, "day": s["day"] + rng.randi_range(2, 8), "reason": reasons[rng.randi() % reasons.size()]})
+		s["returns"].append({"animal": a, "day": s["day"] + rng.randi_range(2, 8), "reason": reasons[rng.randi() % reasons.size()], "who": rq["who"]})
 	if rng.randf() < 0.3:
 		s["donors"].append(rng.randi_range(Catalog.DONOR_MONTHLY[0], Catalog.DONOR_MONTHLY[1]))
 	changed.emit()
@@ -1125,22 +1243,14 @@ func _consequence(c: Dictionary) -> String:
 		"criador":
 			if a["sterilized"]:
 				# No le sirve para criar: lo devuelve.
-				a["location"] = "refugio"
-				a["mood"] = maxi(0, a["mood"] - 25)
-				a["returned_count"] += 1
-				s["animals"].append(a)
-				_rep(-1)
-				return "↩ «%s» ha devuelto a %s sin dar muchas explicaciones. Como estaba esterilizado, no les servía para criar." % [c["who"], a["name"]]
+				_schedule_return(a, "Es que... no es lo que esperábamos. Mejor que se quede aquí.", c["who"])
+				return "↩ «%s» quiere devolver a %s. Como está esterilizado, no les sirve para criar." % [c["who"], a["name"]]
 			_rep(-6)
 			return "‼ Un socio nos envía un anuncio de internet: venden cachorros «de %s», como si fuera de raza, a 400 €. Lo adoptó «%s» y lo están usando para criar." % [a["name"], c["who"]]
 		"regalo":
-			a["location"] = "refugio"
-			a["mood"] = maxi(0, a["mood"] - 30)
-			a["returned_count"] += 1
-			s["animals"].append(a)
-			st["returned"] += 1
-			_rep(-2)
-			return "↩ Devuelven a %s: «Era un regalo sorpresa y al final no lo quería. Nadie tiene tiempo para él.»" % a["name"]
+			_rep(-1)
+			_schedule_return(a, "Era un regalo sorpresa y al final no lo quería. Nadie tiene tiempo para él.", c["who"])
+			return "↩ «%s» quiere devolver a %s: el regalo sorpresa no salió bien." % [c["who"], a["name"]]
 		"acumulador":
 			a["location"] = "refugio"
 			a["health"] = rng.randi_range(25, 45)
@@ -1542,6 +1652,9 @@ func load_game() -> bool:
 	if typeof(data) != TYPE_DICTIONARY:
 		return false
 	s = _decode(data)
+	for k in ["visits", "consequences", "returns"]:
+		if not s.has(k):
+			s[k] = []  # partidas de versiones anteriores
 	changed.emit()
 	world_changed.emit()
 	return true

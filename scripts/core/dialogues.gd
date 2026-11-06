@@ -29,6 +29,8 @@ static func talk(id: String) -> Dictionary:
 		return _staff(id)
 	if id.begins_with("adoptante_"):
 		return _adopter(int(id.get_slice("_", 1)))
+	if id.begins_with("visita_"):
+		return _visit(int(id.get_slice("_", 1)))
 	return {"text": "...", "options": []}
 
 
@@ -220,6 +222,45 @@ static func _adopter(request_id: int) -> Dictionary:
 		return {"text": Game.send_visitor_home(request_id), "options": [["Adiós", ""]]}])
 	options.append(["Un momento, ahora vuelvo", ""])
 	return {"text": text, "options": options, "who": rq["who"]}
+
+
+## Dueños que vienen a recoger y familias que vienen a devolver.
+static func _visit(visit_id: int) -> Dictionary:
+	var v := Game._find_id(Game.s["visits"], visit_id)
+	if v.is_empty():
+		return {"text": "...", "options": [["Adiós", ""]]}
+	var nm := Game.visit_animal_name(v)
+	if v["kind"] == "dueño":
+		var a := Game.animal(v["animal_id"])
+		var here: bool = not a.is_empty() and a["location"] in ["refugio", "llevando"]
+		var text: String = _pick([
+			"Hola... Me han llamado por el chip. ¿Tenéis a %s? Llevamos días buscándolo por todo el pueblo.",
+			"¡Buenas! Vengo a por %s. Se nos escapó y los niños no paran de llorar.",
+			"Hola, soy el dueño de %s. Muchísimas gracias por recogerlo, de verdad.",
+		]) % nm
+		if not here:
+			text += "\n\n(%s no está en el refugio ahora mismo.)" % nm
+		return {"text": text, "who": v["who"], "options": [
+			["Entregarle a %s" % nm, func() -> Dictionary:
+				return {"text": Game.hand_over(visit_id), "options": [["¡Que vaya bien!", ""]]}],
+			["Un momento, ahora vuelvo", ""],
+		]}
+	var a: Dictionary = v["animal"]
+	var text2: String = "Hola... Venimos a devolver a %s. %s" % [nm, v["reason"]]
+	if a["returned_count"] > 0:
+		text2 += " Ya sabemos que no es la primera vez que le pasa..."
+	return {"text": text2, "who": v["who"], "options": [
+		["Recibir a %s de vuelta" % nm, func() -> Dictionary:
+			return {"text": Game.take_back(visit_id), "options": [["Adiós", ""]]}],
+		["Darles consejos para que lo intenten otra vez", func() -> Dictionary:
+			var tips := _pick([
+				"«Al principio todos cuesta. Paseos más largos, rutinas fijas y premios cuando haga las cosas bien.»",
+				"«Dadle un sitio solo para él y no lo dejéis tantas horas solo al principio. Se irá calmando.»",
+				"«Si rompe cosas es que se aburre: juguetes de morder y más ejercicio. Y paciencia.»",
+			])
+			return {"text": tips + "\n" + Game.advise_keep(visit_id), "options": [["Adiós", ""]]}],
+		["Un momento, ahora vuelvo", ""],
+	]}
 
 
 ## Presentaciones de los perfiles no aptos: suenan normales, pero dejan caer alguna pista.
