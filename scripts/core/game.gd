@@ -75,6 +75,7 @@ func new_game() -> void:
 		"calls": [],
 		"requests": [],
 		"returns": [],          # {animal, day}
+		"consequences": [],     # adopciones a quien no debía: {type, animal, day}
 		"next_id": 1,
 		"fed_today": false,
 		"cleaned_today": false,
@@ -486,6 +487,12 @@ func end_day() -> void:
 			_rep(-1)
 			lines.append("↩ Han devuelto a %s: «%s»" % [a["name"], r["reason"]])
 
+	# --- Consecuencias de adopciones a quien no debía ---
+	for c in s["consequences"].duplicate():
+		if c["day"] <= s["day"]:
+			s["consequences"].erase(c)
+			lines.append(_consequence(c))
+
 	# --- Solicitudes de adopción ---
 	for rq in s["requests"].duplicate():
 		if rq.get("state", "") == "esperando":
@@ -803,6 +810,10 @@ func apply_service(id: int, service: String, own: bool) -> String:
 			if a["abuse"]:
 				a["abuse_known"] = true
 				found.append("INDICIOS DE MALTRATO")
+				# Si ya se estaba contactando con el dueño (lector de chips), ahora toca decidir si denunciar.
+				if a["chip"] == "dueño" and a.get("owner_case", "") in ["contactando", "sin_respuesta"]:
+					a["owner_case"] = "decidir"
+					found.append("el chip identifica al propietario: puedes denunciarle")
 			if a["chip"] == "desconocido":
 				found.append(_read_chip(a))
 			msg = "Revisión de %s: %s." % [a["name"], ", ".join(found) if not found.is_empty() else "todo correcto"]
@@ -912,14 +923,14 @@ func _generate_requests(next_morning: bool = false) -> void:
 	chance += land_info().get("adopt_bonus", 0.0)
 	if has_building("patio"):
 		chance += 0.15
-	for i in 2:
+	for i in 3:
 		if s["requests"].size() < 4 and rng.randf() < chance:
 			var species := "gato" if rng.randf() < 0.3 else "perro"
 			var homes := ["piso pequeño", "piso con terraza", "casa con jardín", "casa de campo"]
 			var home: String = homes[rng.randi() % homes.size()]
 			var sizes := ["pequeño"] if species == "gato" else (["pequeño", "mediano"] if home.begins_with("piso") else ["mediano", "grande"])
 			var families := ["Familia García", "Pareja joven", "Señora jubilada", "Familia con niños", "Estudiante", "Pareja de jubilados", "Familia López", "Chico que vive solo"]
-			s["requests"].append({
+			var rq_new := {
 				"id": s["next_id"],
 				"who": families[rng.randi() % families.size()],
 				"species": species,
@@ -929,7 +940,19 @@ func _generate_requests(next_morning: bool = false) -> void:
 				"state": "pendiente",
 				"visit_at": _visit_time(next_morning),
 				"look": rng.randi(),
-			})
+				"suspect": "",
+			}
+			# Algunos solicitantes no son aptos. El jugador tiene que darse cuenta hablando con ellos.
+			if rng.randf() < SUSPECT_CHANCE:
+				var type: String = SUSPECTS.keys()[rng.randi() % SUSPECTS.size()]
+				var prof: Dictionary = SUSPECTS[type]
+				rq_new["suspect"] = type
+				rq_new["who"] = prof["who"][rng.randi() % prof["who"].size()]
+				rq_new["species"] = prof["species"][rng.randi() % prof["species"].size()]
+				rq_new["size"] = prof["size"][rng.randi() % prof["size"].size()] if rq_new["species"] == "perro" else "pequeño"
+				rq_new["energy"] = prof.get("energy", rq_new["energy"])
+				rq_new["home"] = prof["home"]
+			s["requests"].append(rq_new)
 			s["next_id"] += 1
 			var rq: Dictionary = s["requests"][-1]
 			notify.emit("Nueva solicitud de adopción: %s vendrá al refugio %s." % [rq["who"], visit_text(rq)], "info")
@@ -997,6 +1020,38 @@ func match_score(rq: Dictionary, a: Dictionary) -> int:
 	return score
 
 
+const SUSPECT_CHANCE := 0.22
+## Perfiles no aptos. "who" son nombres neutros: lo que les delata es lo que dicen.
+const SUSPECTS := {
+	"cazador": {"who": ["Señor Martín", "Familia López", "Pareja de jubilados"], "species": ["perro"], "size": ["mediano", "grande"], "energy": "enérgico", "home": "casa de campo"},
+	"guarda": {"who": ["Chico que vive solo", "Señor Martín"], "species": ["perro"], "size": ["grande"], "energy": "enérgico", "home": "casa con jardín"},
+	"criador": {"who": ["Pareja joven", "Familia García", "Señora Ruiz"], "species": ["perro", "gato"], "size": ["pequeño", "mediano"], "home": "casa con jardín"},
+	"regalo": {"who": ["Chico que vive solo", "Estudiante", "Pareja joven"], "species": ["perro", "gato"], "size": ["pequeño"], "home": "piso pequeño"},
+	"acumulador": {"who": ["Señora jubilada", "Señora Ruiz"], "species": ["gato"], "size": ["pequeño"], "energy": "tranquilo", "home": "piso pequeño"},
+}
+
+
+## Rechazar a una familia en la entrevista.
+func refuse_adopter(request_id: int) -> String:
+	var rq := _find_id(s["requests"], request_id)
+	if rq.is_empty():
+		return ""
+	s["requests"].erase(rq)
+	changed.emit()
+	if rq.get("suspect", "") != "":
+		s["stats"]["refused_ok"] = s["stats"].get("refused_ok", 0) + 1
+		var angry := {
+			"cazador": "«¡Pues nada, ya encontraré perro en otro sitio! Con tanta tontería...»",
+			"guarda": "«Vaya, por un perro para la nave... Ya lo compraré por internet.»",
+			"criador": "«¿Y quién eres tú para decidir? Hay más protectoras.»",
+			"regalo": "«Jo, pues vaya sorpresa me habéis chafado.»",
+			"acumulador": "«¡Los pobrecitos están mejor conmigo que aquí! No lo entendéis...»",
+		}
+		return angry.get(rq["suspect"], "«Bueno, pues nada.»")
+	_rep(-1)
+	return "«Vaya... nos hacía mucha ilusión. Bueno, gracias de todas formas.»"
+
+
 func adopt(request_id: int, animal_id: int) -> String:
 	var rq := _find_id(s["requests"], request_id)
 	var a := animal(animal_id)
@@ -1019,6 +1074,11 @@ func adopt(request_id: int, animal_id: int) -> String:
 	if a["energy"] == "miedoso": return_chance += 0.1
 	_remove_animal(a)
 	adopted.emit(rq, a)
+	var suspect: String = rq.get("suspect", "")
+	if suspect != "":
+		# Las consecuencias llegan días después.
+		s["consequences"].append({"type": suspect, "animal": a, "day": s["day"] + rng.randi_range(3, 9), "who": rq["who"]})
+		return_chance = 0.0
 	if rng.randf() < return_chance:
 		var reasons := ["No se adapta al piso", "Ladra demasiado", "Rompe cosas", "Se lleva mal con los niños",
 			"No tenemos tiempo para pasearlo", "Es más grande de lo que esperábamos"]
@@ -1028,6 +1088,76 @@ func adopt(request_id: int, animal_id: int) -> String:
 	changed.emit()
 	var fit: String = ["no encaja nada con lo que buscaban", "encaja en parte", "¡encaje perfecto!"][score]
 	return "¡%s se va a casa con %s! (%s) +%d €" % [a["name"], rq["who"], fit, Catalog.ADOPTION_FEE + donation]
+
+
+func _consequence(c: Dictionary) -> String:
+	var a: Dictionary = c["animal"]
+	var st: Dictionary = s["stats"]
+	st["bad_adoptions"] = st.get("bad_adoptions", 0) + 1
+	match c["type"]:
+		"cazador", "guarda":
+			# Reaparece abandonado o en malas condiciones: aviso de rescate. El chip identifica al adoptante.
+			var spot := "Pinar" if c["type"] == "cazador" else "Polígono industrial"
+			a["location"] = "calle"
+			a["health"] = rng.randi_range(12, 30)
+			a["nutrition"] = rng.randi_range(5, 20)
+			a["hygiene"] = 10
+			a["mood"] = 5
+			a["injured"] = true
+			a["abuse"] = true
+			a["abuse_known"] = false
+			a["reviewed"] = false
+			a["chip"] = "desconocido"
+			a["has_owner_chip"] = true   # ahora el chip está a nombre del adoptante
+			a["owner_case"] = ""
+			a["skittish"] = true
+			a["origin"] = spot
+			a["pos"] = _find_by_name(SPOTS, spot)["pos"] + Vector3(rng.randf_range(-5, 5), 0, rng.randf_range(-5, 5))
+			s["animals"].append(a)
+			s["calls"].append({"id": a["id"], "animal": a["id"], "place": spot, "urgent": true, "deadline": s["day"],
+				"desc": ("Un senderista avisa: perro muy delgado y herido, abandonado en el %s" if c["type"] == "cazador" else "Un vecino avisa: perro atado sin agua ni sombra en el %s, en muy mal estado") % spot})
+			_rep(-6)
+			world_changed.emit()
+			notify.emit("Aviso urgente en el %s: un perro en muy mal estado." % spot, "mal")
+			if c["type"] == "cazador":
+				return "‼ Aviso urgente: un perro abandonado y herido en el pinar. Por la descripción... podría ser %s, que adoptó «%s»." % [a["name"], c["who"]]
+			return "‼ Aviso urgente: un perro atado en una nave del polígono, en muy mal estado. Podría ser %s, que adoptó «%s»." % [a["name"], c["who"]]
+		"criador":
+			if a["sterilized"]:
+				# No le sirve para criar: lo devuelve.
+				a["location"] = "refugio"
+				a["mood"] = maxi(0, a["mood"] - 25)
+				a["returned_count"] += 1
+				s["animals"].append(a)
+				_rep(-1)
+				return "↩ «%s» ha devuelto a %s sin dar muchas explicaciones. Como estaba esterilizado, no les servía para criar." % [c["who"], a["name"]]
+			_rep(-6)
+			return "‼ Un socio nos envía un anuncio de internet: venden cachorros «de %s», como si fuera de raza, a 400 €. Lo adoptó «%s» y lo están usando para criar." % [a["name"], c["who"]]
+		"regalo":
+			a["location"] = "refugio"
+			a["mood"] = maxi(0, a["mood"] - 30)
+			a["returned_count"] += 1
+			s["animals"].append(a)
+			st["returned"] += 1
+			_rep(-2)
+			return "↩ Devuelven a %s: «Era un regalo sorpresa y al final no lo quería. Nadie tiene tiempo para él.»" % a["name"]
+		"acumulador":
+			a["location"] = "refugio"
+			a["health"] = rng.randi_range(25, 45)
+			a["hygiene"] = 10
+			a["sick"] = true
+			s["animals"].append(a)
+			var n := rng.randi_range(2, 4)
+			for i in n:
+				var cat := _make_animal({"species": "gato", "size": "pequeño"})
+				cat["location"] = "refugio"
+				cat["health"] = rng.randi_range(20, 45)
+				cat["sick"] = rng.randf() < 0.6
+				cat["origin"] = "Intervención por acumulación"
+				s["animals"].append(cat)
+			_rep(-4)
+			return "‼ El ayuntamiento interviene en el piso de «%s»: más de 30 gatos en condiciones insalubres. Nos traen de vuelta a %s, enfermo, y %d gatos más." % [c["who"], a["name"], n]
+	return ""
 
 
 ## Lo que dice la familia al conocer al animal (antes de decidir).
@@ -1041,7 +1171,15 @@ func adopter_reaction(rq: Dictionary, a: Dictionary) -> String:
 		["¡Es justo lo que buscábamos! Mira cómo nos mira...", "¡Nos encanta! Es perfecto para nosotros."],
 	]
 	var opts: Array = r[maxi(score, 0)]
-	return opts[rng.randi() % opts.size()]
+	var line: String = opts[rng.randi() % opts.size()]
+	var clue := {
+		"cazador": " ¿Y cómo es de olfato? ¿Rastrea? Es lo que necesito.",
+		"guarda": " ¿Ladra mucho? Mejor, así avisa si entra alguien en la nave.",
+		"criador": " Oye, ¿no estará esterilizado, verdad?" if not a["sterilized"] else " Vaya... ¿está esterilizado? Eso no me lo habíais dicho.",
+		"regalo": " ¡Le va a encantar a mi novia! Bueno, eso espero.",
+		"acumulador": " Con los demás va a estar estupendamente. Tengo... unos cuantos.",
+	}
+	return line + clue.get(rq.get("suspect", ""), "")
 
 
 ## La familia se va sin animal (no hay ninguno adecuado). Sin penalización.

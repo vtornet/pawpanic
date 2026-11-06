@@ -190,8 +190,13 @@ static func _adopter(request_id: int) -> Dictionary:
 	var energy_txt: String = "tranquilo, que no dé mucha guerra" if rq["energy"] == "tranquilo" else "con energía, para salir a correr y al campo"
 	var home: String = rq["home"]
 	var article := "una" if home.begins_with("casa") else "un"
-	var text: String = "%s un %s %s. Vivimos en %s %s y nos gustaría que fuera %s." % [
-		intro.get(rq["who"], "Hola, queremos adoptar"), rq["species"], rq["size"], article, home, energy_txt]
+	var text: String
+	var suspect: String = rq.get("suspect", "")
+	if suspect != "":
+		text = SUSPECT_INTRO[suspect] % [rq["species"], rq["size"]]
+	else:
+		text = "%s un %s %s. Vivimos en %s %s y nos gustaría que fuera %s." % [
+			intro.get(rq["who"], "Hola, queremos adoptar"), rq["species"], rq["size"], article, home, energy_txt]
 	var options: Array = []
 	var ready := Game.sheltered().filter(func(a: Dictionary) -> bool: return a["species"] == rq["species"] and Game.is_adoptable(a))
 	var not_ready := Game.sheltered().filter(func(a: Dictionary) -> bool: return a["species"] == rq["species"] and not Game.is_adoptable(a))
@@ -203,10 +208,54 @@ static func _adopter(request_id: int) -> Dictionary:
 	for a in ready.slice(0, 5):
 		options.append(["Presentarle a %s (%s %s, %s, %d años)" % [a["name"], a["species"], a["size"], a["energy"], a["age"]],
 			func() -> Dictionary: return _meet(request_id, a["id"])])
+	if not rq.get("asked", false):
+		options.append(["Hacerles unas preguntas (dónde vivirá, tiempo, experiencia)", func() -> Dictionary:
+			rq["asked"] = true
+			var next := _adopter(request_id)
+			next["text"] = _answers(rq)
+			return next])
+	options.append(["No os vamos a dar ningún animal: no lo vemos claro", func() -> Dictionary:
+		return {"text": Game.refuse_adopter(request_id), "options": [["Adiós", ""]]}])
 	options.append(["Ahora mismo no tenemos ninguno para vosotros", func() -> Dictionary:
 		return {"text": Game.send_visitor_home(request_id), "options": [["Adiós", ""]]}])
 	options.append(["Un momento, ahora vuelvo", ""])
 	return {"text": text, "options": options, "who": rq["who"]}
+
+
+## Presentaciones de los perfiles no aptos: suenan normales, pero dejan caer alguna pista.
+const SUSPECT_INTRO := {
+	"cazador": "Buenas. Vengo a por un %s %s, que tenga nervio. Es para el campo; tengo más en la finca y me hace falta uno más para la temporada.",
+	"guarda": "Hola. Busco un %s %s, de los que impongan. Tengo una nave en el polígono y me han entrado a robar dos veces.",
+	"criador": "Hola, buscamos un %s %s, bonito, que parezca de raza. Ya tenemos alguno más en casa y nos encantan.",
+	"regalo": "¡Hola! Quiero un %s %s, el más bonito que tengáis. Es una sorpresa y lo quiero hoy mismo, que es su cumpleaños.",
+	"acumulador": "Hola, cariño. Vengo a por un %s %s. Es que no puedo ver a ninguno sin casa, se me parte el alma. Me los llevaría todos.",
+}
+
+
+## Respuestas a las preguntas de la entrevista.
+static func _answers(rq: Dictionary) -> String:
+	var suspect: String = rq.get("suspect", "")
+	var a := {
+		"cazador": "—¿Dónde va a vivir? «En la finca, en el cercado con los otros. Allí vive mejor que en un piso.»\n—¿Cuánto tiempo estará solo? «Solo no, que hay más perros. Yo subo a echarles de comer cada dos o tres días.»\n—¿Habéis tenido perros? «Toda la vida, de caza. Los que salen buenos se quedan; los que no...» (se encoge de hombros)",
+		"guarda": "—¿Dónde va a vivir? «En la nave. De noche suelto, bueno, con una cadena larga, que no se vaya.»\n—¿Cuánto tiempo estará solo? «Por las noches y los fines de semana, para eso lo quiero.»\n—¿Habéis tenido perros? «Tuve otro, pero se me escapó, o se lo llevaron, no sé.»",
+		"criador": "—¿Dónde va a vivir? «En casa, con nuestras hembras. ¿Tiene papeles? Es que parece de raza.»\n—¿Está de acuerdo con esterilizarlo? «Hombre... preferimos que no, que es una pena.»\n—¿Habéis tenido animales? «Sí, varios. Hemos tenido alguna camada, todos colocados.»",
+		"regalo": "—¿Quién lo va a cuidar? «Mi novia. Bueno, no sabe nada todavía, es una sorpresa.»\n—¿Cuánto tiempo estará solo? «Ella trabaja todo el día, pero ya se apañará.»\n—¿Habéis tenido animales? «No, ninguno de los dos. Pero tiene que ser bonito, para la foto.»",
+		"acumulador": "—¿Dónde va a vivir? «Con los demás, en casa. Tengo... unos cuantos. Ya no los cuento.»\n—¿Los tiene vacunados y esterilizados? «Ay, eso es mucho dinero para tantos. Están sanos, sanos.»\n—¿Algún vecino se ha quejado? «Los vecinos son unos exagerados, por un poco de olor.»",
+	}
+	if suspect != "":
+		return a[suspect]
+	var home: String = rq["home"]
+	var legit := [
+		"—¿Dónde va a vivir? «Dentro de casa, claro. Ya le hemos mirado una cama.»",
+		"—¿Dónde va a vivir? «En casa con nosotros. Tenemos %s, así que espacio hay.»" % home,
+	]
+	var time := ["—¿Cuánto tiempo estará solo? «Trabajamos por turnos, así que casi siempre hay alguien.»",
+		"—¿Cuánto tiempo estará solo? «Unas horas por la mañana. Al mediodía vengo a sacarlo.»",
+		"—¿Cuánto tiempo estará solo? «Muy poco, trabajo desde casa.»"]
+	var exp := ["—¿Habéis tenido animales? «Tuvimos una perra catorce años. Todavía la echamos de menos.»",
+		"—¿Habéis tenido animales? «Es el primero, pero nos hemos informado mucho y tenemos veterinario cerca.»",
+		"—¿Habéis tenido animales? «De pequeña siempre tuve gatos en casa de mis padres.»"]
+	return "%s\n%s\n%s\n¿Os parece bien que esté esterilizado? «Sí, claro, mejor.»" % [_pick(legit), _pick(time), _pick(exp)]
 
 
 ## La familia conoce al animal y reacciona; el jugador decide si sigue adelante.

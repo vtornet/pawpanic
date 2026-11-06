@@ -162,12 +162,50 @@ func run(world: World, ui: GameUI) -> void:
 	Game.advance_minutes(200)
 	_check(Game.visitors().is_empty(), "la familia que no fue atendida debería irse")
 
+	# --- Adoptante no apto: un cazador ---
+	var dog := Game._make_animal({"species": "perro", "size": "grande"})
+	for k in ["reviewed", "vaccinated", "dewormed"]:
+		dog[k] = true
+	dog["chip"] = "nuestro"
+	dog["sick"] = false
+	dog["injured"] = false
+	dog["location"] = "refugio"
+	Game.s["animals"].append(dog)
+	Game.s["requests"].append({"id": 8888, "who": "Señor Martín", "species": "perro", "size": "grande", "energy": "enérgico",
+		"home": "casa de campo", "state": "esperando", "visit_at": 0, "wait_until": Game.now_abs() + 100, "look": 1, "suspect": "cazador"})
+	var hunter := Dialogues.talk("adoptante_8888")
+	_check("finca" in hunter["text"] or "temporada" in hunter["text"], "el cazador debería dejar caer alguna pista")
+	var ask: Array = hunter["options"].filter(func(o: Array) -> bool: return "preguntas" in o[0])
+	_check(ask.size() == 1 and "cercado" in ask[0][1].call()["text"], "las preguntas deberían destapar más pistas")
+	var rep_before: int = Game.s["reputation"]
+	Game.adopt(8888, dog["id"])
+	_check(Game.s["consequences"].size() == 1, "adoptar a un no apto debería tener consecuencias")
+	Game.s["consequences"][0]["day"] = Game.s["day"]
+	Game.end_day()
+	var back := Game.animal(dog["id"])
+	_check(not back.is_empty() and back["location"] == "calle" and back["injured"], "el perro debería aparecer abandonado y herido")
+	_check(Game.s["calls"].any(func(c: Dictionary) -> bool: return c["animal"] == dog["id"]), "debería llegar un aviso para rescatarlo")
+	if not back.is_empty():
+		back["skittish"] = false
+		Game.pick_up(back["id"])
+		Game.apply_service(back["id"], "revision", false)
+		_check(back["owner_case"] == "decidir", "el chip debería identificar al adoptante y permitir denunciarle (%s)" % back["owner_case"])
+		Game.deposit_all()
+	# Rechazar a un no apto no penaliza; a una familia buena, sí.
+	Game.s["requests"].append({"id": 8889, "who": "Estudiante", "species": "gato", "size": "pequeño", "energy": "tranquilo",
+		"home": "piso pequeño", "state": "esperando", "visit_at": 0, "wait_until": Game.now_abs() + 100, "look": 1, "suspect": "regalo"})
+	var r0: int = Game.s["reputation"]
+	Game.refuse_adopter(8889)
+	_check(Game.s["reputation"] == r0, "rechazar a un no apto no debería restar")
+
 	# --- Simulación larga: 200 días con decisiones sencillas ---
 	Game.s["money"] = 50000
 	for day in 200:
 		if Game.s["step"] != "jugando":
 			break
-		Game.advance_minutes(6 * 60)
+		for step in 3:
+			Game.advance_minutes(120)
+			_bot_visitors()
 		for call in Game.s["calls"].duplicate():
 			var an := Game.animal(call["animal"])
 			if not an.is_empty() and Game.occupancy() + Game.carried().size() < Game.slots():
@@ -185,10 +223,17 @@ func run(world: World, ui: GameUI) -> void:
 		if Game.occupancy() >= Game.slots() - 1:
 			Game.build("caniles")
 		for rq in Game.s["requests"].duplicate():
+			if rq.get("suspect", "") != "":
+				Game.refuse_adopter(rq["id"])
+				continue
+			var done := false
 			for an in Game.sheltered():
 				if Game.is_adoptable(an) and Game.match_score(rq, an) >= 1:
 					Game.adopt(rq["id"], an["id"])
+					done = true
 					break
+			if not done and rq.get("state", "") == "esperando":
+				Game.send_visitor_home(rq["id"])
 		if Game.s["stock"]["pienso"] < 20:
 			Game.buy_product("pienso", 5)
 		if Game.s["stock"]["limpieza"] < 5:
@@ -215,6 +260,22 @@ func run(world: World, ui: GameUI) -> void:
 		print("SMOKE FAIL:\n  - " + "\n  - ".join(_fails))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Game.SAVE_PATH))
 	get_tree().quit(0 if _fails.is_empty() else 1)
+
+
+## Atiende a las familias que esperan: rechaza a las sospechosas y adopta si hay encaje.
+func _bot_visitors() -> void:
+	for rq in Game.visitors():
+		if rq.get("suspect", "") != "":
+			Game.refuse_adopter(rq["id"])
+			continue
+		var done := false
+		for an in Game.sheltered():
+			if Game.is_adoptable(an) and Game.match_score(rq, an) >= 1:
+				Game.adopt(rq["id"], an["id"])
+				done = true
+				break
+		if not done:
+			Game.send_visitor_home(rq["id"])
 
 
 func _frames(n: int) -> void:

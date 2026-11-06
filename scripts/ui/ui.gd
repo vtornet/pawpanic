@@ -127,7 +127,7 @@ func open_panel(kind: String) -> void:
 	var dialog := kind == "dialogo"
 	_modal.offset_left = 260 if dialog else 140
 	_modal.offset_right = -260 if dialog else -140
-	_modal.offset_top = 500 if dialog else 60
+	_modal.offset_top = 380 if dialog else 60
 	_modal.offset_bottom = -50 if dialog else -60
 	_close_btn.visible = kind in ["dialogo", "tablet", "refugio", "clinica", "peluqueria", "tienda", "ayuntamiento", "pausa"]
 	Game.paused = true
@@ -641,7 +641,8 @@ func _build_dialog() -> void:
 			if n.npc_id == _dialog_id:
 				who = "%s · %s" % [n.display_name, n.role]
 	_modal_title.text = who
-	var l := _p("«%s»" % _dialog["text"] if not _dialog["text"].begins_with("«") else _dialog["text"], 21)
+	var raw: String = _dialog["text"]
+	var l := _p(raw if raw.begins_with("«") or raw.begins_with("—") else "«%s»" % raw, 20)
 	l.add_theme_color_override("font_color", Color(1, 0.96, 0.85))
 	_sep()
 	for opt in _dialog["options"]:
