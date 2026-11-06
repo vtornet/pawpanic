@@ -8,6 +8,7 @@ signal world_changed                 # animales en la calle / escapados han camb
 signal notify(text: String, kind: String)
 signal day_ended(summary: String)
 signal game_over(reason: String)
+signal adopted(request: Dictionary, animal: Dictionary)   # para que el mundo muestre a la familia marchándose
 
 const SAVE_PATH := "user://partida.json"
 const MONTHS := ["septiembre", "octubre", "noviembre", "diciembre", "enero", "febrero",
@@ -309,6 +310,7 @@ func advance_minutes(m: float) -> void:
 	# Cada hora de juego: avisos nuevos, solicitudes y movimiento de escapados.
 	if now / 60 != before / 60:
 		_hourly()
+	_update_visits()
 	if s["minute"] >= Catalog.DAY_END:
 		end_day()
 	elif now != before:
@@ -486,10 +488,11 @@ func end_day() -> void:
 
 	# --- Solicitudes de adopción ---
 	for rq in s["requests"].duplicate():
-		rq["days"] -= 1
-		if rq["days"] <= 0:
+		if rq.get("state", "") == "esperando":
 			s["requests"].erase(rq)
-	_generate_requests()
+			_rep(-1)
+			lines.append("%s se cansó de esperar en el refugio y se fue a casa." % rq["who"])
+	_generate_requests(true)
 
 	# --- Eventos ---
 	for e in s["events"].keys():
@@ -899,7 +902,12 @@ func _progress_owner_case(a: Dictionary) -> String:
 # Adopciones
 # =====================================================================
 
-func _generate_requests() -> void:
+## Minuto absoluto de la partida (para programar visitas).
+func now_abs() -> int:
+	return int(s["day"]) * 1440 + int(s["minute"])
+
+
+func _generate_requests(next_morning: bool = false) -> void:
 	var chance: float = 0.25 + s["reputation"] / 160.0
 	chance += land_info().get("adopt_bonus", 0.0)
 	if has_building("patio"):
@@ -918,9 +926,65 @@ func _generate_requests() -> void:
 				"size": sizes[rng.randi() % sizes.size()],
 				"energy": "tranquilo" if rng.randf() < 0.5 else "enérgico",
 				"home": home,
-				"days": 3,
+				"state": "pendiente",
+				"visit_at": _visit_time(next_morning),
+				"look": rng.randi(),
 			})
 			s["next_id"] += 1
+			var rq: Dictionary = s["requests"][-1]
+			notify.emit("Nueva solicitud de adopción: %s vendrá al refugio %s." % [rq["who"], visit_text(rq)], "info")
+
+
+func _visit_time(next_morning: bool) -> int:
+	# Visitan entre las 10:00 y las 19:00, hoy o mañana.
+	var day: int = s["day"] + (1 if next_morning else rng.randi_range(0, 1))
+	var minute := rng.randi_range(10 * 60, 19 * 60)
+	var t := day * 1440 + minute
+	if t < now_abs() + 30:
+		t = (s["day"] + 1) * 1440 + minute
+	return t
+
+
+func visit_text(rq: Dictionary) -> String:
+	var t: int = rq["visit_at"]
+	var day := t / 1440
+	var m := t % 1440
+	var when := "hoy" if day == s["day"] else ("mañana" if day == s["day"] + 1 else "el día %d" % day)
+	return "%s a las %02d:%02d" % [when, m / 60, m % 60]
+
+
+## Llegadas y esperas de las familias. Se llama cada vez que avanza el reloj.
+func _update_visits() -> void:
+	var now := now_abs()
+	for rq in s["requests"].duplicate():
+		if not rq.has("visit_at"):  # partidas guardadas antes de las visitas
+			rq["visit_at"] = _visit_time(false)
+		var st: String = rq.get("state", "pendiente")
+		if st == "pendiente" and now >= rq["visit_at"] and s["minute"] < Catalog.DAY_END - 60:
+			rq["state"] = "esperando"
+			rq["wait_until"] = now + 150
+			notify.emit("%s ha llegado al refugio para conocer a los animales. Ve a atenderles." % rq["who"], "aviso")
+			_log("%s ha llegado al refugio." % rq["who"])
+			changed.emit()
+		elif st == "esperando" and now > rq["wait_until"]:
+			s["requests"].erase(rq)
+			_rep(-1)
+			notify.emit("%s se ha cansado de esperar y se ha ido." % rq["who"], "mal")
+			changed.emit()
+
+
+func visitors() -> Array:
+	return s["requests"].filter(func(r: Dictionary) -> bool: return r.get("state", "") == "esperando")
+
+
+## Llamar a la familia para que venga cuanto antes.
+func call_visit_now(request_id: int) -> String:
+	var rq := _find_id(s["requests"], request_id)
+	if rq.is_empty() or rq.get("state", "") != "pendiente":
+		return ""
+	rq["visit_at"] = now_abs() + 30
+	changed.emit()
+	return "Has llamado a %s: vienen en media hora." % rq["who"]
 
 
 func match_score(rq: Dictionary, a: Dictionary) -> int:
@@ -954,6 +1018,7 @@ func adopt(request_id: int, animal_id: int) -> String:
 	var return_chance: float = [0.6, 0.28, 0.05][score]
 	if a["energy"] == "miedoso": return_chance += 0.1
 	_remove_animal(a)
+	adopted.emit(rq, a)
 	if rng.randf() < return_chance:
 		var reasons := ["No se adapta al piso", "Ladra demasiado", "Rompe cosas", "Se lleva mal con los niños",
 			"No tenemos tiempo para pasearlo", "Es más grande de lo que esperábamos"]
@@ -962,7 +1027,31 @@ func adopt(request_id: int, animal_id: int) -> String:
 		s["donors"].append(rng.randi_range(Catalog.DONOR_MONTHLY[0], Catalog.DONOR_MONTHLY[1]))
 	changed.emit()
 	var fit: String = ["no encaja nada con lo que buscaban", "encaja en parte", "¡encaje perfecto!"][score]
-	return "¡%s ha sido adoptado por %s! (%s) +%d €" % [a["name"], rq["who"], fit, Catalog.ADOPTION_FEE + donation]
+	return "¡%s se va a casa con %s! (%s) +%d €" % [a["name"], rq["who"], fit, Catalog.ADOPTION_FEE + donation]
+
+
+## Lo que dice la familia al conocer al animal (antes de decidir).
+func adopter_reaction(rq: Dictionary, a: Dictionary) -> String:
+	var score := match_score(rq, a)
+	var r := [
+		["Mmm... es muy distinto a lo que buscábamos. Pero bueno, si nos decís que es buena idea...",
+			"No sé yo... no es lo que teníamos pensado."],
+		["Es muy bonito. No es exactamente lo que buscábamos, pero nos gusta.",
+			"Nos ha caído bien. Igual hay que adaptarse un poco, pero vale."],
+		["¡Es justo lo que buscábamos! Mira cómo nos mira...", "¡Nos encanta! Es perfecto para nosotros."],
+	]
+	var opts: Array = r[maxi(score, 0)]
+	return opts[rng.randi() % opts.size()]
+
+
+## La familia se va sin animal (no hay ninguno adecuado). Sin penalización.
+func send_visitor_home(request_id: int) -> String:
+	var rq := _find_id(s["requests"], request_id)
+	if rq.is_empty():
+		return ""
+	s["requests"].erase(rq)
+	changed.emit()
+	return "«Vale, gracias. Si llega alguno que encaje, nos llamáis.»"
 
 
 func reject_request(request_id: int) -> void:

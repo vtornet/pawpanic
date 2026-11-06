@@ -25,6 +25,9 @@ var _shelter_sig := ""
 var _shelter_animals: Node3D
 var _staff_root: Node3D
 var _staff_sig := ""
+var _visitors_root: Node3D
+var _visitors_sig := ""
+var _visitor_nodes := {}  # request id -> Npc
 var _animals_sig := ""
 var _current: Interactable
 
@@ -41,6 +44,9 @@ func _ready() -> void:
 	_staff_root = Node3D.new()
 	_staff_root.name = "Personal"
 	add_child(_staff_root)
+	_visitors_root = Node3D.new()
+	_visitors_root.name = "Visitas"
+	add_child(_visitors_root)
 	_street = Node3D.new()
 	_street.name = "Calle"
 	add_child(_street)
@@ -54,6 +60,8 @@ func _ready() -> void:
 	Game.changed.connect(_sync_shelter)
 	Game.changed.connect(_sync_shelter_animals)
 	Game.changed.connect(_sync_staff)
+	Game.changed.connect(_sync_visitors)
+	Game.adopted.connect(_on_adopted)
 	_sync()
 
 
@@ -372,6 +380,93 @@ func _sync_staff() -> void:
 			n.talked.connect(talk.emit)
 			_staff_root.add_child(n)
 			i += 1
+
+
+# =====================================================================
+# Familias que vienen a adoptar
+# =====================================================================
+
+const VISITOR_SHIRTS := [Color(0.85, 0.3, 0.3), Color(0.3, 0.45, 0.85), Color(0.95, 0.75, 0.25), Color(0.55, 0.35, 0.7),
+	Color(0.3, 0.7, 0.5), Color(0.9, 0.5, 0.2), Color(0.4, 0.4, 0.45)]
+const VISITOR_HAIR := [Color(0.12, 0.08, 0.05), Color(0.55, 0.4, 0.25), Color(0.85, 0.72, 0.45), Color(0.75, 0.75, 0.75), Color(0.35, 0.2, 0.12)]
+
+
+func _visitor_look(rq: Dictionary) -> Dictionary:
+	var seed: int = rq.get("look", rq["id"])
+	var old: bool = "jubilad" in rq["who"]
+	return {"shirt": VISITOR_SHIRTS[seed % VISITOR_SHIRTS.size()], "pants": Color(0.2, 0.22, 0.3),
+		"hair": Color(0.8, 0.8, 0.8) if old else VISITOR_HAIR[(seed / 7) % VISITOR_HAIR.size()],
+		"long_hair": seed % 2 == 0}
+
+
+func _visitor_spot(i: int) -> Vector3:
+	var half := Game.land_size() / 2.0
+	return Game.s["land_pos"] + Vector3(-3.0 + i * 3.0, 0.06, -half + 3.0)
+
+
+func _sync_visitors() -> void:
+	var list := Game.visitors()
+	var sig := ",".join(PackedStringArray(list.map(func(r: Dictionary) -> String: return str(r["id"]))))
+	if sig == _visitors_sig:
+		return
+	_visitors_sig = sig
+	var wanted := {}
+	for r in list:
+		wanted[r["id"]] = r
+	for id in _visitor_nodes.keys():
+		if not wanted.has(id):
+			_visitor_nodes[id].queue_free()
+			_visitor_nodes.erase(id)
+	var i := 0
+	for id in wanted:
+		var rq: Dictionary = wanted[id]
+		if not _visitor_nodes.has(id):
+			var root := Node3D.new()
+			var n := Npc.create("adoptante_%d" % id, rq["who"], "quiere adoptar", _visitor_look(rq))
+			n.talked.connect(talk.emit)
+			root.add_child(n)
+			if "niños" in rq["who"]:
+				var kid := Npc.create("adoptante_%d" % id, "", "", {"shirt": Color(0.95, 0.85, 0.2), "pants": Color(0.3, 0.45, 0.8), "hair": _visitor_look(rq)["hair"]})
+				kid.scale = Vector3.ONE * 0.6
+				kid.position = Vector3(0.8, 0, -0.2)
+				kid.talked.connect(talk.emit)
+				root.add_child(kid)
+			_visitors_root.add_child(root)
+			_visitor_nodes[id] = root
+		_visitor_nodes[id].global_position = _visitor_spot(i)
+		_visitor_nodes[id].rotation.y = PI  # mirando hacia la caseta
+		i += 1
+
+
+## La familia se marcha con su nuevo compañero hacia la salida.
+func _on_adopted(rq: Dictionary, a: Dictionary) -> void:
+	var start := _visitor_spot(0)
+	if _visitor_nodes.has(rq["id"]):
+		start = _visitor_nodes[rq["id"]].global_position
+		_visitor_nodes[rq["id"]].queue_free()
+		_visitor_nodes.erase(rq["id"])
+	var group := Node3D.new()
+	add_child(group)
+	group.global_position = start
+	var walker := Npc.create("adoptado_%d" % rq["id"], rq["who"], "", _visitor_look(rq))
+	walker.remove_from_group("npc")
+	for c in walker.get_children():
+		if c is Interactable:
+			c.queue_free()
+	group.add_child(walker)
+	var pet := AnimalMesh.build(a)
+	pet.position = Vector3(0.9, 0, -0.6)
+	group.add_child(pet)
+	var heart := Shapes.label("♥", Vector3(0.9, 1.4, -0.6), 64)
+	heart.modulate = Color(1, 0.4, 0.5)
+	group.add_child(heart)
+	var exit: Vector3 = Game.s["land_pos"] + Vector3(0, 0.06, -Game.land_size() / 2.0 - 30.0)
+	group.look_at(Vector3(exit.x, start.y, exit.z), Vector3.UP)
+	var tw := create_tween()
+	tw.tween_property(group, "global_position", exit, 14.0)
+	tw.parallel().tween_property(heart, "position:y", 2.2, 2.0)
+	tw.tween_callback(group.queue_free)
+	_visitors_sig = ""  # recolocar al resto
 
 
 # =====================================================================

@@ -33,7 +33,7 @@ El diseño completo está en [`docs/GDD.md`](docs/GDD.md).
 2. Los **avisos** llegan a la tablet y aparecen en el mundo como columnas de luz roja. Ve hasta allí (a pie solo puedes llevar 1 animal) y pulsa **E** para recogerlo.
 3. Llévalo a la **clínica veterinaria**: revisión (lee el chip y detecta enfermedades y maltrato), vacunas, chip, desparasitación, tratamiento, esterilización. Todo cuesta dinero.
 4. Déjalo en el **refugio**: entra en la caseta y verás a los animales en sus caniles. Dentro están el comedero, el armario de limpieza y la mesa de gestión (sacar animales para llevarlos a algún sitio, servicios propios, cambiar de vehículo y dormir para terminar el día).
-5. Cuando está revisado, vacunado, desparasitado, con chip de la protectora y sano, puedes darlo en **adopción** (tablet → Adopciones). Si no encaja con la familia, puede que te lo devuelvan.
+5. Cuando está revisado, vacunado, desparasitado, con chip de la protectora y sano, puede ser **adoptado**. Las familias piden cita (tablet → Adopciones) y vienen en persona a la entrada del refugio: habla con ellas, preséntales al animal que creas que encaja y firma la adopción. Si no encaja, puede que te lo devuelvan; si nadie les atiende en un par de horas, se van.
 6. Compra **pienso y productos de limpieza**: se gastan cada día. Sin ellos, los animales enferman.
 7. Haz **campañas** para conseguir socios, amplía el **terreno**, construye zonas, contrata **personal**, compra **vehículos** (bici con carro → gran furgoneta) y el **lector de chips** o el **rastreador GPS**.
 8. Cumple los requisitos de la **subvención municipal** y supera la inspección en el ayuntamiento.

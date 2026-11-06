@@ -27,6 +27,8 @@ static func talk(id: String) -> Dictionary:
 		"seprona": return _seprona()
 	if id.begins_with("staff_"):
 		return _staff(id)
+	if id.begins_with("adoptante_"):
+		return _adopter(int(id.get_slice("_", 1)))
 	return {"text": "...", "options": []}
 
 
@@ -167,6 +169,57 @@ static func _seprona() -> Dictionary:
 	else:
 		text = "Si encuentra un animal con indicios de maltrato y tiene chip, venga con el informe del veterinario y lo tramitamos. El abandono también es delito."
 	return {"text": text, "options": [["Denuncias", "ayuntamiento"], ["Adiós", ""]]}
+
+
+## Familia que visita el refugio. Las opciones con Callable ejecutan una acción
+## y su resultado se muestra como respuesta.
+static func _adopter(request_id: int) -> Dictionary:
+	var rq := Game._find_id(Game.s["requests"], request_id)
+	if rq.is_empty():
+		return {"text": "...", "options": []}
+	var intro := {
+		"Familia García": "Hola, somos los García. Llevamos tiempo pensando en adoptar",
+		"Pareja joven": "¡Hola! Nos acabamos de ir a vivir juntos y queremos adoptar",
+		"Señora jubilada": "Buenas tardes, hijo. Desde que me quedé sola, la casa se me hace muy grande. Quiero adoptar",
+		"Familia con niños": "¡Hola! Los niños llevan meses pidiéndonos adoptar",
+		"Estudiante": "Hola. Estoy estudiando a distancia y paso mucho tiempo en casa. Quiero adoptar",
+		"Pareja de jubilados": "Buenos días. Ahora que estamos jubilados tenemos todo el tiempo del mundo. Queremos adoptar",
+		"Familia López": "Hola, somos los López. Queremos adoptar",
+		"Chico que vive solo": "Hola, ¿qué tal? Vivo solo y me gustaría adoptar",
+	}
+	var energy_txt: String = "tranquilo, que no dé mucha guerra" if rq["energy"] == "tranquilo" else "con energía, para salir a correr y al campo"
+	var home: String = rq["home"]
+	var article := "una" if home.begins_with("casa") else "un"
+	var text: String = "%s un %s %s. Vivimos en %s %s y nos gustaría que fuera %s." % [
+		intro.get(rq["who"], "Hola, queremos adoptar"), rq["species"], rq["size"], article, home, energy_txt]
+	var options: Array = []
+	var ready := Game.sheltered().filter(func(a: Dictionary) -> bool: return a["species"] == rq["species"] and Game.is_adoptable(a))
+	var not_ready := Game.sheltered().filter(func(a: Dictionary) -> bool: return a["species"] == rq["species"] and not Game.is_adoptable(a))
+	if ready.is_empty():
+		text += "\n\n(No tienes ningún %s listo para adopción." % rq["species"]
+		if not not_ready.is_empty():
+			text += " %s aún no tiene: %s." % [not_ready[0]["name"], ", ".join(Game.missing_for_adoption(not_ready[0]))]
+		text += ")"
+	for a in ready.slice(0, 5):
+		options.append(["Presentarle a %s (%s %s, %s, %d años)" % [a["name"], a["species"], a["size"], a["energy"], a["age"]],
+			func() -> Dictionary: return _meet(request_id, a["id"])])
+	options.append(["Ahora mismo no tenemos ninguno para vosotros", func() -> Dictionary:
+		return {"text": Game.send_visitor_home(request_id), "options": [["Adiós", ""]]}])
+	options.append(["Un momento, ahora vuelvo", ""])
+	return {"text": text, "options": options, "who": rq["who"]}
+
+
+## La familia conoce al animal y reacciona; el jugador decide si sigue adelante.
+static func _meet(request_id: int, animal_id: int) -> Dictionary:
+	var rq := Game._find_id(Game.s["requests"], request_id)
+	var a := Game.animal(animal_id)
+	if rq.is_empty() or a.is_empty():
+		return {"text": "...", "options": [["Adiós", ""]]}
+	return {"text": Game.adopter_reaction(rq, a), "who": rq["who"], "options": [
+		["Firmar la adopción de %s (%d € de tasa)" % [a["name"], Catalog.ADOPTION_FEE], func() -> Dictionary:
+			return {"text": Game.adopt(request_id, animal_id), "options": [["¡Hasta pronto!", ""]]}],
+		["Mejor os enseño otro", func() -> Dictionary: return _adopter(request_id)],
+	]}
 
 
 static func _staff(id: String) -> Dictionary:

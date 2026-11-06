@@ -126,6 +126,42 @@ func run(world: World, ui: GameUI) -> void:
 		await _frames(1)
 		ui.close_panel()
 
+	# --- Visita de una familia en persona ---
+	Game.s["requests"].clear()
+	var pet := Game._make_animal({"species": "perro", "size": "mediano"})
+	for k in ["reviewed", "vaccinated", "dewormed"]:
+		pet[k] = true
+	pet["chip"] = "nuestro"
+	pet["sick"] = false
+	pet["injured"] = false
+	pet["energy"] = "tranquilo"
+	pet["location"] = "refugio"
+	Game.s["animals"].append(pet)
+	Game.s["requests"].append({"id": 7777, "who": "Familia con niños", "species": "perro", "size": "mediano",
+		"energy": "tranquilo", "home": "casa con jardín", "state": "pendiente", "visit_at": Game.now_abs() + 20, "look": 3})
+	Game.s["requests"].append({"id": 7778, "who": "Estudiante", "species": "gato", "size": "pequeño",
+		"energy": "tranquilo", "home": "piso pequeño", "state": "pendiente", "visit_at": Game.now_abs() + 20, "look": 5})
+	Game.advance_minutes(30)
+	_check(Game.visitors().size() == 2, "deberían haber llegado dos familias (%d)" % Game.visitors().size())
+	await _frames(2)
+	var visitor_npcs := get_tree().get_nodes_in_group("npc").filter(func(n: Node) -> bool: return n.npc_id.begins_with("adoptante_"))
+	_check(visitor_npcs.size() >= 2, "las familias deberían verse en el refugio")
+	var talk_d := Dialogues.talk("adoptante_7777")
+	var meet_opt: Array = talk_d["options"].filter(func(o: Array) -> bool: return o[1] is Callable and pet["name"] in o[0])
+	_check(meet_opt.size() == 1, "debería poder presentarles a %s" % pet["name"])
+	if meet_opt.size() == 1:
+		var meet: Dictionary = meet_opt[0][1].call()
+		_check("Es justo lo que buscábamos" in meet["text"] or "encanta" in meet["text"], "la familia debería reaccionar bien a un encaje perfecto")
+		var adopted_before: int = Game.s["stats"]["adopted"]
+		var sign_d: Dictionary = meet["options"][0][1].call()
+		_check(Game.s["stats"]["adopted"] == adopted_before + 1, "la adopción en persona debería firmarse (%s)" % sign_d["text"])
+		await _frames(2)
+	ui.open_dialog("adoptante_7778")
+	await _frames(1)
+	ui.close_panel()
+	Game.advance_minutes(200)
+	_check(Game.visitors().is_empty(), "la familia que no fue atendida debería irse")
+
 	# --- Simulación larga: 200 días con decisiones sencillas ---
 	Game.s["money"] = 50000
 	for day in 200:

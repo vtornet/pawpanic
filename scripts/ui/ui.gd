@@ -127,7 +127,7 @@ func open_panel(kind: String) -> void:
 	var dialog := kind == "dialogo"
 	_modal.offset_left = 260 if dialog else 140
 	_modal.offset_right = -260 if dialog else -140
-	_modal.offset_top = 560 if dialog else 60
+	_modal.offset_top = 500 if dialog else 60
 	_modal.offset_bottom = -50 if dialog else -60
 	_close_btn.visible = kind in ["dialogo", "tablet", "refugio", "clinica", "peluqueria", "tienda", "ayuntamiento", "pausa"]
 	Game.paused = true
@@ -215,10 +215,11 @@ func _update_hud() -> void:
 		s["name"], Game.date_text(), Game.time_text(), Game.money(), s["reputation"], Game.occupancy(), Game.slots()]
 	var car := Game.carried()
 	var names := PackedStringArray(car.map(func(a: Dictionary) -> String: return a["name"]))
-	_hud_right.text = "%s · llevas %d / %d%s\nAvisos: %d   ·   Escapados: %d" % [
+	_hud_right.text = "%s · llevas %d / %d%s\nAvisos: %d   ·   Escapados: %d%s" % [
 		Game.vehicle()["name"], car.size(), Game.capacity(),
 		("\n" + ", ".join(names)) if not names.is_empty() else "",
-		s["calls"].size(), Game.animals_at("escapado").size()]
+		s["calls"].size(), Game.animals_at("escapado").size(),
+		"\n‼ Familias esperando en el refugio: %d" % Game.visitors().size() if not Game.visitors().is_empty() else ""]
 	_crosshair.visible = _open == ""
 
 
@@ -445,23 +446,20 @@ func _tab_adoptions() -> void:
 	_h("Solicitudes de adopción")
 	if s["requests"].is_empty():
 		_p("No hay solicitudes. Llegan más con buena reputación, un terreno cerca del pueblo o un patio de paseo.")
-	var available := Game.sheltered().filter(Game.is_adoptable)
 	for rq in s["requests"]:
-		_p("%s · vive en %s · busca %s %s y %s · caduca en %d día(s)" % [rq["who"], rq["home"], rq["species"], rq["size"], rq["energy"], rq["days"]])
-		var row := _row()
-		var any := false
-		for a in available:
-			var score := Game.match_score(rq, a)
-			if score < 0:
-				continue
-			any = true
-			_btn("%s (%s)" % [a["name"], ["no encaja", "encaja a medias", "encaje perfecto"][score]],
-				func() -> void: _act(Game.adopt(rq["id"], a["id"])), false, row)
-		if not any:
-			_p("   No tienes animales listos que encajen.", 15)
-		_btn("Rechazar", func() -> void: Game.reject_request(rq["id"]), false, row)
+		var waiting: bool = rq.get("state", "") == "esperando"
+		_p("%s · vive en %s · busca %s %s y %s\n   %s" % [rq["who"], rq["home"], rq["species"], rq["size"], rq["energy"],
+			"‼ ESTÁ ESPERANDO EN LA ENTRADA DEL REFUGIO" if waiting else "Visita: " + Game.visit_text(rq)])
+		if not waiting:
+			var row := _row()
+			_btn("Llamar para que vengan ya", func() -> void: _act(Game.call_visit_now(rq["id"])), false, row)
+			_btn("Rechazar solicitud", func() -> void: Game.reject_request(rq["id"]), false, row)
 	_sep()
-	_p("Un animal está listo si está revisado, vacunado, desparasitado, con chip a nombre de la protectora y sano. Un mal emparejamiento acaba a menudo en devolución.", 15)
+	var available := Game.sheltered().filter(Game.is_adoptable)
+	_h("Listos para adopción (%d)" % available.size())
+	for a in available:
+		_p("%s · %s %s, %s, %d años" % [a["name"], a["species"], a["size"], a["energy"], a["age"]], 16)
+	_p("Las familias vienen en persona: habla con ellas en la entrada del refugio y preséntales al animal que mejor encaje. Un mal emparejamiento acaba a menudo en devolución.", 15)
 
 
 func _tab_shop(include_big: bool) -> void:
@@ -636,22 +634,32 @@ func _build_dialog() -> void:
 	if Dialogues.PEOPLE.has(_dialog_id):
 		var p: Dictionary = Dialogues.PEOPLE[_dialog_id]
 		who = "%s · %s" % [p["name"], p["role"]]
+	elif _dialog.has("who"):
+		who = _dialog["who"]
 	else:
 		for n in get_tree().get_nodes_in_group("npc"):
 			if n.npc_id == _dialog_id:
 				who = "%s · %s" % [n.display_name, n.role]
 	_modal_title.text = who
-	var l := _p("«%s»" % _dialog["text"], 22)
+	var l := _p("«%s»" % _dialog["text"] if not _dialog["text"].begins_with("«") else _dialog["text"], 21)
 	l.add_theme_color_override("font_color", Color(1, 0.96, 0.85))
 	_sep()
 	for opt in _dialog["options"]:
-		var panel: String = opt[1]
-		if panel == "":
+		var target = opt[1]
+		if target is Callable:
+			# Acción: su resultado es la siguiente frase de la conversación.
+			_btn(opt[0], func() -> void:
+				var next: Dictionary = target.call()
+				if not next.has("who"):
+					next["who"] = who
+				_dialog = next
+				_rebuild())
+		elif target == "":
 			_btn(opt[0], close_panel)
 		else:
 			_btn(opt[0], func() -> void:
 				_open = ""
-				open_panel(panel))
+				open_panel(target))
 
 
 # =====================================================================
