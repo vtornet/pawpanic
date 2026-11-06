@@ -190,6 +190,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_changed() -> void:
 	Tutorial.check()
+	Achievements.check()
 	_update_hud()
 	if _open != "" and not _rebuild_queued:
 		_rebuild_queued = true
@@ -343,7 +344,7 @@ func _build_intro() -> void:
 # Tablet
 # =====================================================================
 
-const TABS := ["Resumen", "Avisos", "Animales", "Adopciones", "Tienda", "Obras", "Personal", "Donantes"]
+const TABS := ["Resumen", "Avisos", "Animales", "Adopciones", "Tienda", "Obras", "Personal", "Donantes", "Logros"]
 
 
 func _build_tablet() -> void:
@@ -370,6 +371,7 @@ func _build_tablet() -> void:
 		"Obras": _tab_build()
 		"Personal": _tab_staff()
 		"Donantes": _tab_donors()
+		"Logros": _tab_achievements()
 
 
 func _tab_summary() -> void:
@@ -484,8 +486,9 @@ func _tab_adoptions() -> void:
 		_p("No hay solicitudes. Llegan más con buena reputación, un terreno cerca del pueblo o un patio de paseo.")
 	for rq in s["requests"]:
 		var waiting: bool = rq.get("state", "") == "esperando"
-		_p("%s · vive en %s · busca %s %s y %s\n   %s" % [rq["who"], rq["home"], rq["species"], rq["size"], rq["energy"],
-			"‼ ESTÁ ESPERANDO EN LA ENTRADA DEL REFUGIO" if waiting else "Visita: " + Game.visit_text(rq)])
+		_p("%s · vive en %s · busca %s %s y %s\n   %s%s" % [rq["who"], rq["home"], rq["species"], rq["size"], rq["energy"],
+			"‼ ESTÁ ESPERANDO EN LA ENTRADA DEL REFUGIO" if waiting else "Visita: " + Game.visit_text(rq),
+			"\n   ⚠ Tu coordinador/a no se fía de este perfil" if Game.coordinator_doubts(rq) else ""])
 		if not waiting:
 			var row := _row()
 			_btn("Llamar para que vengan ya", func() -> void: _act(Game.call_visit_now(rq["id"])), false, row)
@@ -563,6 +566,21 @@ func _tab_staff() -> void:
 		_p("%s × %d%s\n%s" % [st["name"], Game.staff_count(st["id"]), " · %d €/mes" % st["wage"] if st["wage"] > 0 else " · sin sueldo", st["desc"]], 16, row)
 		_btn("Contratar" if st["wage"] > 0 else "Buscar", func() -> void: _act(Game.hire(st["id"])), false, row)
 		_btn("Despedir" if st["wage"] > 0 else "Despedir", func() -> void: _act(Game.fire(st["id"])), Game.staff_count(st["id"]) == 0, row)
+
+
+func _tab_achievements() -> void:
+	var done := Achievements.unlocked()
+	_h("Logros: %d / %d" % [done.size(), Achievements.LIST.size()])
+	for a in Achievements.LIST:
+		var got: bool = done.has(a["id"])
+		var l := _p("%s %s — %s%s" % ["🏆" if got else "🔒", a["name"], a["desc"], "  (día %d)" % done[a["id"]] if got else ""], 17)
+		l.modulate = Color(1, 0.9, 0.55) if got else Color(1, 1, 1, 0.55)
+	_sep()
+	var t: Dictionary = Game.s["stats"]
+	_h("Estadísticas")
+	_p("Días: %d · Rescatados: %d · Adoptados: %d · Devueltos: %d · Con su dueño: %d" % [Game.s["day"], t["rescued"], t["adopted"], t["returned"], t["to_owner"]], 16)
+	_p("Perdidos: %d · Denuncias: %d · No aptos rechazados: %d · Recuperados en seguimiento: %d · Fauna entregada: %d · Subvenciones: %d" % [
+		t["lost"], t["denuncias"], t.get("refused_ok", 0), t.get("reclaimed", 0), t.get("wild", 0), t.get("grants", 0)], 16)
 
 
 func _tab_donors() -> void:

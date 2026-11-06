@@ -81,6 +81,7 @@ func new_game() -> void:
 		"consequences": [],     # adopciones a quien no debía: {type, animal, day}
 		"visits": [],           # dueños que recogen y familias que devuelven, en persona
 		"followups": [],        # seguimiento de las adopciones recientes
+		"achievements": {},     # logros conseguidos: id -> día
 		"next_id": 1,
 		"fed_today": false,
 		"forwarded_today": 0,
@@ -515,6 +516,7 @@ func end_day() -> void:
 		if rng.randf() < 0.08 * a["days_out"]:
 			_remove_animal(a)
 			st["lost"] += 1
+			st["last_lost_day"] = s["day"]
 			_rep(-3)
 			lines.append("Hemos perdido la señal de %s. No hemos podido recuperarlo." % a["name"])
 
@@ -549,6 +551,9 @@ func end_day() -> void:
 	for f in s["followups"].duplicate():
 		if f["closed"] or s["day"] - f["day"] > 30:
 			s["followups"].erase(f)
+
+	# --- Coordinador de adopciones: seguimiento automático ---
+	lines.append_array(_coordinator_day())
 
 	# --- Solicitudes de adopción ---
 	for rq in s["requests"].duplicate():
@@ -809,6 +814,7 @@ func _escape(a: Dictionary) -> String:
 		return "‼ %s se ha escapado. Tiene chip: su señal aparece en el mapa." % a["name"]
 	_remove_animal(a)
 	s["stats"]["lost"] += 1
+	s["stats"]["last_lost_day"] = s["day"]
 	_rep(-2)
 	return "‼ %s se ha escapado y no tenía chip. No podremos encontrarlo." % a["name"]
 
@@ -1669,6 +1675,7 @@ func followup_reclaim(fid: int, denounce: bool) -> String:
 	if a.is_empty():
 		return ""
 	f["closed"] = true
+	s["stats"]["reclaimed"] = s["stats"].get("reclaimed", 0) + 1
 	a["location"] = "refugio"
 	a["mood"] = maxi(0, a["mood"] - 20)
 	if c.get("type", "") in ["cazador", "guarda", "acumulador"]:
@@ -1688,6 +1695,53 @@ func followup_reclaim(fid: int, denounce: bool) -> String:
 	world_changed.emit()
 	changed.emit()
 	return msg
+
+
+# =====================================================================
+# Coordinador de adopciones
+# =====================================================================
+
+## Su opinión sobre una solicitud: acierta casi siempre, pero no siempre.
+func coordinator_doubts(rq: Dictionary) -> bool:
+	if staff_count("coordinador") == 0:
+		return false
+	var roll := absi(hash(str(rq["id"]) + "coord")) % 100
+	return roll < 80 if rq.get("suspect", "") != "" else roll < 5
+
+
+## Cada día hace el seguimiento de las adopciones de hace 3 días o más.
+func _coordinator_day() -> PackedStringArray:
+	var out: PackedStringArray = []
+	var budget := staff_count("coordinador") * 3
+	if budget == 0:
+		return out
+	for f in open_followups():
+		if budget <= 0:
+			break
+		if f["called"] or s["day"] - f["day"] < 3:
+			continue
+		budget -= 1
+		f["called"] = true
+		var status := followup_status(f)
+		match status:
+			"bien":
+				_rep(1)
+			"devolucion":
+				if rng.randf() < 0.6:
+					s["returns"].erase(_pending_return(f["animal_id"]))
+					f["closed"] = true
+					_rep(1)
+					out.append("📋 Tu coordinador/a ha ayudado a la familia de %s con unos consejos: se lo quedan." % f["name"])
+				else:
+					out.append("📋 Tu coordinador/a cree que la adopción de %s no va bien. Quizá lo devuelvan." % f["name"])
+			_:
+				# Sospecha: hace la visita y, si confirma el problema, recupera al animal.
+				if rng.randf() < 0.75:
+					var denounce: bool = status in ["cazador", "guarda", "acumulador"]
+					followup_reclaim(f["id"], denounce)
+					out.append("📋 En una visita de seguimiento, tu coordinador/a ha encontrado a %s en malas condiciones y lo ha recuperado%s." % [
+						f["name"], " (con denuncia)" if denounce else ""])
+	return out
 
 
 ## Lo que dice la familia al conocer al animal (antes de decidir).
@@ -1827,6 +1881,8 @@ func hire(id: String) -> String:
 		return "Necesitas la zona de limpieza."
 	if id == "veterinario" and not has_building("consulta"):
 		return "Necesitas la consulta veterinaria."
+	if id == "coordinador" and s["tier"] < 2:
+		return "Necesitas al menos la parcela mediana (hay que tener sitio para una oficina)."
 	if id == "voluntario":
 		if staff_count("voluntario") >= 3 + s["reputation"] / 15:
 			return "No hay más voluntarios disponibles. Sube la reputación o haz campañas."
@@ -1903,6 +1959,7 @@ func apply_grant() -> String:
 		_earn(g["amount"], g["name"])
 		_rep(4)
 		changed.emit()
+		s["stats"]["grants"] = s["stats"].get("grants", 0) + 1
 		return "Inspección superada. ¡Subvención concedida: %d €!" % g["amount"]
 	_rep(-3)
 	changed.emit()

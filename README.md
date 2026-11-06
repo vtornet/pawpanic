@@ -46,6 +46,8 @@ Cada **ampliación del refugio** tiene interior y se usa desde dentro: en la **c
 
 El pueblo tiene vida: **vecinos** que pasean (habla con ellos: a veces han visto un animal suelto o te dan un donativo) y **coches** que circulan, así que cuidado al cruzar. El sol avanza con la hora y al atardecer se encienden las farolas.
 
+Con el refugio más grande puedes contratar un **coordinador de adopciones**: hace el seguimiento por ti y te avisa de los solicitantes que no le gustan (aunque no acierta siempre). Tus **logros** y estadísticas están en la tablet → Logros.
+
 **Fauna silvestre**: a veces el aviso es de un erizo, un ave rapaz o una tortuga heridos. Son protegidos: no pueden quedarse en el refugio. Llévalos el mismo día al **Centro de Recuperación de Fauna**, junto al río (carretera de circunvalación oeste), y entrégaselos a Lucía, su técnica.
 
 **Seguimiento post-adopción**: en la tablet (Adopciones) puedes llamar o visitar a las familias del último mes. Si algo va mal, dales consejos o recupera al animal: el contrato de adopción lo permite. Una visita destapa a quien te engañó.
@@ -78,6 +80,7 @@ scripts/ui/ui.gd           Arranque, HUD, tablet y paneles de cada lugar
 scripts/util/shapes.gd     Geometría provisional
 tests/smoke_test.gd        Prueba automática (arranque, rescate, adopción, denuncia, escapes, obras, guardado y 200 días)
 docs/GDD.md                Documento de diseño
+docs/LOGROS_STEAM.md       Logros con sus identificadores para Steam
 ```
 
 La lógica (`game.gd`) no depende del mundo ni de la interfaz, así que se puede

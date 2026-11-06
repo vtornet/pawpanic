@@ -103,6 +103,7 @@ const STAFF := [
 	{"id": "paseador", "name": "Paseador/a", "wage": 1100, "desc": "Mejor ánimo y adopciones. Requiere patio."},
 	{"id": "peluquero", "name": "Peluquero/a", "wage": 1300, "desc": "Baños propios. Requiere zona de limpieza."},
 	{"id": "veterinario", "name": "Veterinario/a", "wage": 2400, "desc": "Servicios propios. Requiere consulta."},
+	{"id": "coordinador", "name": "Coordinador/a de adopciones", "wage": 1500, "desc": "Hace el seguimiento de las adopciones por ti y te avisa de los solicitantes dudosos. Requiere parcela mediana."},
 ]
 
 const CAMPAIGNS := [

@@ -457,6 +457,33 @@ func run(world: World, ui: GameUI) -> void:
 	Game.end_day()
 	_check(Game.animal(owl["id"]).is_empty(), "si no se lleva al centro a tiempo, no sobrevive")
 
+	# --- Coordinador de adopciones y logros ---
+	_check(Game.hire("coordinador").begins_with("Se incorpora"), "debería poder contratarse un coordinador")
+	var victim: Dictionary = make_ready.call("perro")
+	Game.s["requests"].append({"id": 9301, "who": "Chico que vive solo", "species": "perro", "size": "mediano", "energy": "tranquilo",
+		"home": "casa con jardín", "state": "esperando", "visit_at": 0, "wait_until": Game.now_abs() + 300, "look": 4, "suspect": "guarda"})
+	Game.adopt(9301, victim["id"])
+	var fv: Dictionary = Game.s["followups"].filter(func(f: Dictionary) -> bool: return f["animal_id"] == victim["id"])[0]
+	fv["day"] -= 4  # adoptado hace unos días
+	Game.s["consequences"].filter(func(c: Dictionary) -> bool: return c["animal"]["id"] == victim["id"])[0]["day"] = Game.s["day"] + 30
+	var recovered := false
+	for attempt in 6:
+		Game.rng.seed = 500 + attempt
+		Game._coordinator_day()
+		if Game.animal(victim["id"]).get("location", "") == "refugio":
+			recovered = true
+			break
+		fv["called"] = false
+	_check(recovered, "el coordinador debería recuperar al animal de un adoptante no apto")
+	Achievements.check()
+	var got := Achievements.unlocked()
+	for aid in ["PRIMER_RESCATE", "PRIMERA_ADOPCION", "FAUNA_5" if Game.s["stats"].get("wild", 0) >= 5 else "DENUNCIA", "SEGUNDA_OPORTUNIDAD", "GRAN_REFUGIO", "GRANJA"]:
+		_check(got.has(aid), "debería haberse conseguido el logro %s" % aid)
+	ui._tab = GameUI.TABS.find("Logros")
+	ui.open_panel("tablet")
+	await _frames(1)
+	ui.close_panel()
+
 	# --- Simulación larga: 200 días con decisiones sencillas ---
 	Game.s["money"] = 50000
 	for day in 200:

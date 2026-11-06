@@ -219,6 +219,8 @@ static func _adopter(request_id: int) -> Dictionary:
 	else:
 		text = "%s %s %s %s. Vivimos en %s %s y nos gustaría que fuera %s." % [
 			intro.get(rq["who"], "Hola, queremos adoptar"), art_sp, rq["species"], size_txt, article, home, energy_txt]
+	if Game.coordinator_doubts(rq):
+		text += "\n\n(Tu coordinador/a te susurra: «No me fío de este perfil. Pregúntales bien».)"
 	var options: Array = []
 	var ready := Game.sheltered().filter(func(a: Dictionary) -> bool: return a["species"] == rq["species"] and Game.is_adoptable(a))
 	var not_ready := Game.sheltered().filter(func(a: Dictionary) -> bool: return a["species"] == rq["species"] and not Game.is_adoptable(a))

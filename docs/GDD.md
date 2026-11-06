@@ -263,6 +263,8 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 - [x] Nuevas especies: conejos (conejera, desde el principio) y cabras, burros y caballos (establo en la finca); comen heno, los grandes necesitan remolque para transportarlos y el veterinario de grandes animales viene al refugio con suplemento; avisos y familias de estas especies solo cuando hay instalación
 - [x] Seguimiento post-adopción: llamar (15 min) o visitar (1 h 30 min) a las familias del último mes; las buenas lo agradecen (reputación, a veces un saco de pienso), las que tienen problemas reciben consejos que suelen evitar la devolución, y en la visita se destapa a los adoptantes no aptos: se puede recuperar al animal por la cláusula del contrato y denunciar
 - [x] Fauna silvestre herida (erizos, rapaces, tortugas): avisos desde el principio y más en incendios; es protegida, no puede quedarse en el refugio ni adoptarse, solo primeros auxilios; se entrega en el Centro de Recuperación de Fauna (CREA) junto al río a su técnica (+reputación); si no llega a tiempo, no sobrevive
+- [x] Coordinador/a de adopciones (parcela mediana, 1.500 €/mes): hace el seguimiento automático a partir del tercer día (aconseja, visita y recupera animales mal adoptados) y avisa de los solicitantes dudosos, con algún error
+- [x] 19 logros con aviso al conseguirlos, pestaña «Logros» en la tablet con estadísticas; identificadores listos para Steam (docs/LOGROS_STEAM.md)
 - [x] Paso del día: el sol sale, recorre el cielo y se pone (atardecer anaranjado), y las farolas se encienden por la tarde
 - [x] Pueblo con vida: vecinos que pasean y con los que se puede hablar (pistas sobre animales sueltos, algún donativo, comentarios según la reputación) y coches que circulan y frenan ante el jugador
 - [x] Dueños y devoluciones en persona: el dueño de un animal con chip pide cita, viene, se lo entregas (a veces con recompensa) y se va con él; si no le atiendes, vuelve otro día. Quien devuelve viene con el animal y explica por qué: lo recibes o le das consejos para que lo intente otra vez; si nadie le atiende, lo deja atado a la puerta
@@ -274,11 +276,11 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 **Pendiente**
 - [ ] Más especies todavía: hurones, gallinas, aves domésticas
 - [ ] Sonido: ladridos, maullidos, ambiente del pueblo, interfaz y música
-- [ ] Más variedad de conversaciones; coordinador de adopciones que haga el seguimiento automáticamente
+- [ ] Más variedad de conversaciones
 - [ ] Modelos, animaciones y sonido
 - [ ] Combustible, moral del personal, turnos
 - [ ] Más perfiles no aptos (peleas, reventa a laboratorios...) y seguimiento post-adopción para detectarlos a tiempo
-- [ ] Logros de Steam
+- [ ] Integrar los logros con Steam (GodotSteam) e iconos
 
 
 ## 17. Equilibrio (simulador)
