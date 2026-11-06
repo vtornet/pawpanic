@@ -11,13 +11,13 @@ config_version=5
 [application]
 
 config/name="Paw Panic"
-config/description="Caos cooperativo en una protectora de animales."
+config/description="De una caseta a un gran refugio: simulador de gestión de una protectora de animales."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 
 [autoload]
 
-Net="*res://scripts/autoload/net.gd"
+Game="*res://scripts/core/game.gd"
 
 [display]
 

@@ -8,6 +8,7 @@ static func mat(color: Color, roughness: float = 0.85) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
 	m.roughness = roughness
+	m.metallic_specular = 0.12
 	return m
 
 

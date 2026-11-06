@@ -1,135 +1,179 @@
 extends Node
-## Prueba de humo: juega una jornada en solitario de forma automática.
-## Uso:  godot --headless -- --solo --smoke
-## Imprime "SMOKE PASS" o "SMOKE FAIL: ..." y cierra.
+## Prueba automática: juega el arranque, un rescate completo hasta la adopción,
+## un escape con chip, compras y obras, guarda y carga, y simula 200 días
+## abriendo todos los paneles para detectar errores.
+## Uso:  godot --headless -- --smoke     → imprime "SMOKE PASS" o "SMOKE FAIL"
 
-var level: Level
 var _fails: PackedStringArray = []
 
 
-func run(p_level: Level) -> void:
-	level = p_level
-	await _wait(0.5)
+func run(world: World, ui: GameUI) -> void:
+	Game.rng.seed = 12345
+	await _frames(2)
 
-	_check(level.dogs().size() >= 3, "al empezar deberían aparecer al menos 3 perros")
-	_check(level.get_player(1) != null, "debería existir el jugador anfitrión")
-	var player := level.get_player(1)
-	var dog := level.dogs()[0]
-	dog.energy = "tranquilo"  # que no se escurra durante la prueba
-	dog.dirty = true
-	dog.hungry = true
+	# --- Arranque ---
+	_check(not Game.register("ab"), "un nombre de 2 letras no debería valer")
+	_check(Game.register("Huellas de Prueba"), "el registro debería funcionar")
+	_check(Game.take_loan("mediano"), "el préstamo debería concederse")
+	_check(Game.buy_start_land("parcela_camino"), "debería poder comprar el terreno")
+	_check(Game.build_starter(), "debería poder construir la caseta")
+	_check(Game.s["step"] == "jugando", "la partida debería haber empezado")
+	_check(Game.slots() == 4, "la caseta debería tener 4 plazas")
+	_check(Game.s["calls"].size() == 1, "debería haber un primer aviso")
+	await _frames(2)
+	_check(get_tree().get_nodes_in_group("interactable").size() >= 6, "debería haber lugares con los que interactuar")
 
-	# Coger.
-	await _grab(player, dog)
+	# --- Rescate → clínica → adopción ---
+	var a := Game.animal(Game.s["calls"][0]["animal"])
+	a["has_owner_chip"] = false
+	a["skittish"] = false
+	_check(Game.pick_up(a["id"]).begins_with("Has recogido"), "debería poder recoger al animal")
+	_check(a["location"] == "llevando", "el animal debería ir conmigo")
+	_check(Game.s["calls"].is_empty(), "el aviso debería cerrarse")
+	Game.s["money"] = 20000
+	for sv in ["revision", "vacunas", "chip", "desparasitar"]:
+		Game.apply_service(a["id"], sv, false)
+	if a["sick"] or a["injured"]:
+		Game.apply_service(a["id"], "tratamiento", false)
+	_check(a["reviewed"] and a["vaccinated"] and a["chip"] == "nuestro" and a["dewormed"], "los servicios deberían aplicarse")
+	Game.deposit_all()
+	_check(Game.is_adoptable(a), "el animal debería estar listo (falta: %s)" % ", ".join(Game.missing_for_adoption(a)))
+	Game.s["requests"].append({"id": 9999, "who": "Test", "species": a["species"], "size": a["size"],
+		"energy": "tranquilo", "home": "piso", "days": 3})
+	var money_before := Game.money()
+	var msg := Game.adopt(9999, a["id"])
+	_check(Game.money() >= money_before + Catalog.ADOPTION_FEE, "la adopción debería ingresar la tasa (%s)" % msg)
 
-	# Bañar.
-	await _carry_and_drop(player, Level.BATH_POS)
-	await _wait(Level.STATION_TIME + 0.6)
-	_check(not dog.dirty, "el perro debería estar limpio tras el baño")
+	# --- Dueño con chip y maltrato → denuncia ---
+	Game._new_call({})
+	var b := Game.animal(Game.s["calls"][-1]["animal"])
+	b["has_owner_chip"] = true
+	b["abuse"] = true
+	b["skittish"] = false
+	Game.pick_up(b["id"])
+	Game.apply_service(b["id"], "revision", false)
+	_check(b["owner_case"] == "decidir", "con maltrato y chip debería pedirse decisión (%s)" % b["owner_case"])
+	Game.owner_decision(b["id"], true)
+	Game.deposit_all()
+	for i in 4:
+		Game.end_day()
+	_check(b["owner_case"] == "" and b["chip"] == "nuestro", "la denuncia debería resolverse y quedarse el animal")
 
-	# Dar de comer.
-	await _grab(player, dog)
-	await _carry_and_drop(player, Level.FOOD_POS)
-	await _wait(Level.STATION_TIME + 0.6)
-	_check(not dog.hungry, "el perro debería haber comido")
+	# --- Escape con chip y recuperación ---
+	b["location"] = "refugio"
+	Game._escape(b)
+	_check(b["location"] == "escapado", "un animal con chip debería quedar localizable")
+	await _frames(2)
+	Game.pick_up(b["id"])
+	if b["location"] != "llevando":
+		b["skittish"] = false
+		Game.pick_up(b["id"])
+	_check(b["location"] == "llevando", "debería poder recuperar al escapado")
+	Game.deposit_all()
 
-	# Entregar a un adoptante que encaja.
-	level._adopters.clear()
-	level._adopters.append({"id": 99, "size": dog.size, "energy": dog.energy, "patience": 60.0})
-	var money_before := level._money
-	await _grab(player, dog)
-	await _carry_and_drop(player, Level.DESK_POS)
-	await _wait(0.5)
-	_check(level._money == money_before + 100, "la adopción perfecta debería dar 100 € (%d -> %d)" % [money_before, level._money])
-	_check(not is_instance_valid(dog) or dog.is_queued_for_deletion(), "el perro adoptado debería salir del refugio")
+	# --- Escape sin chip: perdido ---
+	var c := Game._make_animal({})
+	c["location"] = "refugio"
+	c["chip"] = "no"
+	Game.s["animals"].append(c)
+	Game._escape(c)
+	_check(Game.animal(c["id"]).is_empty(), "un animal sin chip debería perderse al escapar")
 
-	# Fuga: un perro fuera de la valla se pierde tras el margen.
-	var runner := level.dogs()[0]
-	var rep_before := level._reputation
-	runner.position = Vector3(0, 0.3, -25)
-	await _wait(Level.ESCAPE_GRACE + 0.6)
-	_check(level._reputation < rep_before, "una fuga debería restar reputación (rep %d -> %d, perro válido=%s, pos=%s, energía=%s)" % [
-		rep_before, level._reputation, is_instance_valid(runner) and not runner.is_queued_for_deletion(),
-		runner.position if is_instance_valid(runner) else "-", runner.energy if is_instance_valid(runner) else "-"])
+	# --- Compras, obras, personal, campañas ---
+	_check(Game.buy_vehicle("bici").begins_with("¡Has"), "debería comprar la bici")
+	_check(Game.capacity() == 2, "la bici debería llevar 2")
+	Game.buy_product("pienso", 5)
+	_check(Game.build("caniles").begins_with("Construido"), "debería construir caniles")
+	_check(Game.slots() == 8, "debería haber 8 plazas")
+	_check(Game.build("consulta") != "", "la consulta requiere terreno mayor")
+	Game.s["money"] = 60000
+	Game.buy_land_upgrade("mediana")
+	_check(Game.s["tier"] == 2, "el terreno debería ampliarse")
+	_check(Game.build("cuarentena").begins_with("Construido"), "debería construir la cuarentena")
+	Game.hire("cuidador")
+	_check(Game.staff_count("cuidador") == 1, "debería contratar un cuidador")
+	Game.run_campaign("redes")
+	Game.buy_equipment("lector")
+	_check(Game.has_equipment("lector"), "debería tener lector de chips")
 
-	# Cacas: aparece una tras comer, se coge y va al contenedor.
-	var eater := level.dogs()[0]
-	eater.energy = "tranquilo"
-	eater.position = Vector3(0, 0.3, 0)
-	eater.poop_timer = 0.05
-	await _wait(0.4)
-	_check(level.poops().size() >= 1, "debería haber aparecido una caca")
-	if level.poops().size() > 0:
-		var pp := level.poops()[0]
-		_check(level.poop_under(pp.position), "pisar la caca debería detectarse")
-		player.global_position = pp.position + Vector3(0.4, 0.1, 0)
-		await _wait(0.1)
-		level._handle_interact(1)
-		await _wait(0.1)
-		_check(pp.carried_by == 1, "la caca debería ir en la mano")
-		player.global_position = Level.BIN_POS + Vector3(0, 0.1, 1.5)
-		await _wait(0.1)
-		level._handle_interact(1)
-		await _wait(0.1)
-		_check(level._day_stats["poops"] == 1, "la caca debería contar como recogida")
+	# --- Guardar y cargar ---
+	var before := [Game.money(), Game.s["day"], Game.s["animals"].size(), Game.s["reputation"], Game.slots()]
+	Game.save_game()
+	Game.s["money"] = -1
+	_check(Game.load_game(), "debería cargar la partida")
+	var after := [Game.money(), Game.s["day"], Game.s["animals"].size(), Game.s["reputation"], Game.slots()]
+	_check(str(before) == str(after), "la partida cargada debería coincidir (%s vs %s)" % [before, after])
+	_check(typeof(Game.s["land_pos"]) == TYPE_VECTOR3, "las posiciones deberían recuperarse como Vector3")
 
-	# Lanzar un perro a un compañero que lo atrapa al vuelo.
-	level._add_player(2)
-	await _wait(0.2)
-	var mate := level.get_player(2)
-	var flyer := level.dogs()[0]
-	flyer.energy = "tranquilo"
-	player.global_position = Vector3(0, 0.1, 6)
-	player.rotation.y = 0.0  # mirando hacia -Z
-	mate.global_position = Vector3(0, 0.1, 2)
-	await _grab(player, flyer)
-	player.global_position = Vector3(0, 0.1, 6)
-	await _wait(0.05)
-	level._handle_throw(1)
-	_check(flyer.airborne, "el perro debería salir volando")
-	await _wait(1.2)
-	_check(flyer.carried_by == 2, "el compañero debería atrapar al perro al vuelo (carried_by=%d)" % flyer.carried_by)
-	_check(level._day_stats["catches"] == 1, "debería contar una captura al vuelo")
+	# --- Todos los paneles ---
+	for kind in ["tablet", "refugio", "clinica", "peluqueria", "tienda", "ayuntamiento", "pausa"]:
+		ui.open_panel(kind)
+		await _frames(1)
+		if kind == "tablet":
+			for t in GameUI.TABS.size():
+				ui._tab = t
+				ui._rebuild()
+				await _frames(1)
+		ui.close_panel()
 
-	# Fin de jornada y siguiente día.
-	level._time_left = 0.01
-	await _wait(0.3)
-	_check(not level._running, "la jornada debería haber terminado")
-	level._on_next_day_pressed()
-	await _wait(0.3)
-	_check(level._running and level._day == 2, "debería empezar el día 2")
+	# --- Simulación larga: 200 días con decisiones sencillas ---
+	Game.s["money"] = 50000
+	for day in 200:
+		if Game.s["step"] != "jugando":
+			break
+		Game.advance_minutes(6 * 60)
+		for call in Game.s["calls"].duplicate():
+			var an := Game.animal(call["animal"])
+			if not an.is_empty() and Game.occupancy() + Game.carried().size() < Game.slots():
+				an["skittish"] = false
+				Game.pick_up(an["id"])
+		for an in Game.carried():
+			for sv in ["revision", "vacunas", "chip", "desparasitar", "tratamiento"]:
+				Game.apply_service(an["id"], sv, false)
+		for an in Game.animals_at("escapado"):
+			an["skittish"] = false
+			Game.pick_up(an["id"])
+		Game.deposit_all()
+		if day == 10:
+			Game.build("vallado")
+		if Game.occupancy() >= Game.slots() - 1:
+			Game.build("caniles")
+		for rq in Game.s["requests"].duplicate():
+			for an in Game.sheltered():
+				if Game.is_adoptable(an) and Game.match_score(rq, an) >= 1:
+					Game.adopt(rq["id"], an["id"])
+					break
+		if Game.s["stock"]["pienso"] < 20:
+			Game.buy_product("pienso", 5)
+		if Game.s["stock"]["limpieza"] < 5:
+			Game.buy_product("limpieza", 3)
+		Game.feed_all()
+		Game.clean_all()
+		if day % 37 == 0:
+			ui.open_panel("tablet")
+			ui._tab = day % GameUI.TABS.size()
+			ui._rebuild()
+			await _frames(1)
+			ui.close_panel()
+		Game.end_day()
+		if day % 20 == 0:
+			await _frames(1)
+	_check(Game.s["day"] > 150, "la simulación debería avanzar muchos días (día %d)" % Game.s["day"])
+	print("Simulación: día %d, dinero %d, reputación %d, rescatados %d, adoptados %d, devueltos %d, perdidos %d, en refugio %d" % [
+		Game.s["day"], Game.money(), Game.s["reputation"], Game.s["stats"]["rescued"], Game.s["stats"]["adopted"],
+		Game.s["stats"]["returned"], Game.s["stats"]["lost"], Game.occupancy()])
 
 	if _fails.is_empty():
 		print("SMOKE PASS")
 	else:
 		print("SMOKE FAIL:\n  - " + "\n  - ".join(_fails))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Game.SAVE_PATH))
 	get_tree().quit(0 if _fails.is_empty() else 1)
 
 
-func _grab(player: Player, dog: Dog) -> void:
-	# Lo aparta del resto para no coger a otro perro que esté más cerca.
-	dog.position = Vector3(7, 0.3, 2)
-	for other in level.dogs():
-		if other != dog and other.position.distance_to(dog.position) < 3.0:
-			other.position = Vector3(-7, 0.3, -4)
-	player.global_position = dog.global_position + Vector3(0.5, 0, 0)
-	await _wait(0.05)
-	level._handle_interact(1)
-	await _wait(0.05)
-	_check(dog.carried_by == 1, "no se pudo coger a %s" % dog.dog_name)
-
-
-func _carry_and_drop(player: Player, target: Vector3) -> void:
-	# Coloca al jugador de forma que al soltar el perro caiga en el objetivo.
-	player.rotation.y = 0.0
-	player.global_position = target + Vector3(0, 0.1, 1.1)
-	await _wait(0.2)
-	level._handle_interact(1)
-	await _wait(0.1)
-
-
-func _wait(t: float) -> void:
-	await get_tree().create_timer(t).timeout
+func _frames(n: int) -> void:
+	for i in n:
+		await get_tree().process_frame
 
 
 func _check(ok: bool, msg: String) -> void:
