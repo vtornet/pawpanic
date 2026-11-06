@@ -81,6 +81,7 @@ scripts/util/shapes.gd     Geometría provisional
 tests/smoke_test.gd        Prueba automática (arranque, rescate, adopción, denuncia, escapes, obras, guardado y 200 días)
 docs/GDD.md                Documento de diseño
 docs/LOGROS_STEAM.md       Logros con sus identificadores para Steam
+docs/SONIDOS.md            Lista de sonidos y música que hay que conseguir
 ```
 
 La lógica (`game.gd`) no depende del mundo ni de la interfaz, así que se puede
