@@ -27,6 +27,7 @@ el router del anfitrión). Cuando pasemos a Steam, la conexión irá por invitac
 |---|---|---|
 | Moverse | WASD / flechas | Stick izquierdo |
 | Coger / soltar | E / Espacio | A |
+| Lanzar perro | Q | X |
 | Impulso | Shift | B |
 
 ## Cómo se juega (prototipo)
@@ -38,6 +39,8 @@ el router del anfitrión). Cuando pasemos a Steam, la conexión irá por invitac
 - Los perros **enérgicos** se escurren de los brazos y salen corriendo hacia la puerta.
   Si pasan 8 segundos fuera de la valla, se pierden.
 - Los **charcos de barro** vuelven a ensuciarlos.
+- **Lanza** perros (Q) a un compañero: si pasa cerca con las manos libres, lo atrapa al vuelo. También puedes lanzarlos al mostrador.
+- Después de comer hacen **caca**. Recógelas y llévalas al **contenedor**: si las pisas resbalas y se te cae lo que llevas, y cada una sin recoger al cerrar resta reputación.
 - Si la reputación llega a 0, la protectora cierra.
 
 ## Estructura
@@ -48,7 +51,8 @@ scenes/main.tscn          Escena de arranque
 scripts/main.gd           Menú (solo / crear / unirse)
 scripts/level.gd          Patio, reglas de la jornada, adopciones, fugas (lo decide el anfitrión)
 scripts/player.gd         Voluntario (cada jugador mueve el suyo)
-scripts/dog.gd            Perro: rasgos, necesidades, IA de paseo y fuga
+scripts/dog.gd            Perro: rasgos, necesidades, IA, animación procedural y vuelo
+scripts/poop.gd           Cacas
 scripts/hud.gd            Interfaz
 scripts/autoload/net.gd   Red (ENet hoy, GodotSteam más adelante) y controles
 scripts/util/shapes.gd    Geometría provisional

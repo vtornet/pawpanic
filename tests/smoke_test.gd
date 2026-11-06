@@ -20,10 +20,7 @@ func run(p_level: Level) -> void:
 	dog.hungry = true
 
 	# Coger.
-	player.global_position = dog.global_position + Vector3(0.5, 0, 0)
-	level._handle_interact(1)
-	await _wait(0.1)
-	_check(dog.carried_by == 1, "el perro debería estar en brazos")
+	await _grab(player, dog)
 
 	# Bañar.
 	await _carry_and_drop(player, Level.BATH_POS)
@@ -51,7 +48,48 @@ func run(p_level: Level) -> void:
 	var rep_before := level._reputation
 	runner.position = Vector3(0, 0.3, -25)
 	await _wait(Level.ESCAPE_GRACE + 0.6)
-	_check(level._reputation < rep_before, "una fuga debería restar reputación")
+	_check(level._reputation < rep_before, "una fuga debería restar reputación (rep %d -> %d, perro válido=%s, pos=%s, energía=%s)" % [
+		rep_before, level._reputation, is_instance_valid(runner) and not runner.is_queued_for_deletion(),
+		runner.position if is_instance_valid(runner) else "-", runner.energy if is_instance_valid(runner) else "-"])
+
+	# Cacas: aparece una tras comer, se coge y va al contenedor.
+	var eater := level.dogs()[0]
+	eater.energy = "tranquilo"
+	eater.position = Vector3(0, 0.3, 0)
+	eater.poop_timer = 0.05
+	await _wait(0.4)
+	_check(level.poops().size() >= 1, "debería haber aparecido una caca")
+	if level.poops().size() > 0:
+		var pp := level.poops()[0]
+		_check(level.poop_under(pp.position), "pisar la caca debería detectarse")
+		player.global_position = pp.position + Vector3(0.4, 0.1, 0)
+		await _wait(0.1)
+		level._handle_interact(1)
+		await _wait(0.1)
+		_check(pp.carried_by == 1, "la caca debería ir en la mano")
+		player.global_position = Level.BIN_POS + Vector3(0, 0.1, 1.5)
+		await _wait(0.1)
+		level._handle_interact(1)
+		await _wait(0.1)
+		_check(level._day_stats["poops"] == 1, "la caca debería contar como recogida")
+
+	# Lanzar un perro a un compañero que lo atrapa al vuelo.
+	level._add_player(2)
+	await _wait(0.2)
+	var mate := level.get_player(2)
+	var flyer := level.dogs()[0]
+	flyer.energy = "tranquilo"
+	player.global_position = Vector3(0, 0.1, 6)
+	player.rotation.y = 0.0  # mirando hacia -Z
+	mate.global_position = Vector3(0, 0.1, 2)
+	await _grab(player, flyer)
+	player.global_position = Vector3(0, 0.1, 6)
+	await _wait(0.05)
+	level._handle_throw(1)
+	_check(flyer.airborne, "el perro debería salir volando")
+	await _wait(1.2)
+	_check(flyer.carried_by == 2, "el compañero debería atrapar al perro al vuelo (carried_by=%d)" % flyer.carried_by)
+	_check(level._day_stats["catches"] == 1, "debería contar una captura al vuelo")
 
 	# Fin de jornada y siguiente día.
 	level._time_left = 0.01
@@ -69,6 +107,11 @@ func run(p_level: Level) -> void:
 
 
 func _grab(player: Player, dog: Dog) -> void:
+	# Lo aparta del resto para no coger a otro perro que esté más cerca.
+	dog.position = Vector3(7, 0.3, 2)
+	for other in level.dogs():
+		if other != dog and other.position.distance_to(dog.position) < 3.0:
+			other.position = Vector3(-7, 0.3, -4)
 	player.global_position = dog.global_position + Vector3(0.5, 0, 0)
 	await _wait(0.05)
 	level._handle_interact(1)

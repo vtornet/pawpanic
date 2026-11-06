@@ -24,6 +24,9 @@ var level: Level
 var _dash_left := 0.0
 var _dash_cd := 0.0
 var _dash_dir := Vector3.ZERO
+var _slip_left := 0.0
+var _slip_cd := 0.0
+var _visual: Node3D
 
 
 static func create(p_peer: int, p_slot: int) -> Player:
@@ -48,6 +51,7 @@ static func create(p_peer: int, p_slot: int) -> Player:
 	body.add_child(Shapes.capsule(0.4, 1.6, color, Vector3(0, 0.8, 0)))
 	body.add_child(Shapes.box(Vector3(0.5, 0.15, 0.25), Color(0.15, 0.15, 0.15), Vector3(0, 1.25, -0.35)))
 	p.add_child(body)
+	p._visual = body
 	p.add_child(Shapes.label("J%d" % (p_slot + 1), Vector3(0, 2.2, 0), 40))
 
 	var sync := MultiplayerSynchronizer.new()
@@ -56,6 +60,9 @@ static func create(p_peer: int, p_slot: int) -> Player:
 	for prop in [".:position", ".:rotation"]:
 		cfg.add_property(NodePath(prop))
 		cfg.property_set_replication_mode(NodePath(prop), SceneReplicationConfig.REPLICATION_MODE_ALWAYS)
+	# El giro del resbalón también lo ven los demás.
+	cfg.add_property(NodePath("Visual:rotation"))
+	cfg.property_set_replication_mode(NodePath("Visual:rotation"), SceneReplicationConfig.REPLICATION_MODE_ALWAYS)
 	sync.replication_config = cfg
 	p.add_child(sync)
 
@@ -72,6 +79,17 @@ func _physics_process(delta: float) -> void:
 
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var dir := Vector3(input.x, 0, input.y)
+
+	_slip_cd = maxf(_slip_cd - delta, 0.0)
+	if _slip_left > 0.0:
+		_process_slip(delta)
+		return
+	if _slip_cd <= 0.0 and level and level.poop_under(global_position):
+		_slip_left = 0.8
+		_slip_cd = 2.0
+		velocity = Vector3(velocity.x, 0, velocity.z).normalized() * 9.0 if Vector3(velocity.x, 0, velocity.z).length() > 0.5 else -transform.basis.z * 6.0
+		level.send_slip()
+		return
 
 	_dash_cd = maxf(_dash_cd - delta, 0.0)
 	if Input.is_action_just_pressed("dash") and _dash_cd <= 0.0:
@@ -101,6 +119,19 @@ func _physics_process(delta: float) -> void:
 
 	if Input.is_action_just_pressed("interact") and level:
 		level.send_interact()
+	if Input.is_action_just_pressed("throw") and level:
+		level.send_throw()
+
+
+func _process_slip(delta: float) -> void:
+	# Resbalón: sin control, girando, frenando poco a poco.
+	_slip_left -= delta
+	_visual.rotation.y += delta * 18.0
+	velocity.x = move_toward(velocity.x, 0.0, 9.0 * delta)
+	velocity.z = move_toward(velocity.z, 0.0, 9.0 * delta)
+	move_and_slide()
+	if _slip_left <= 0.0:
+		_visual.rotation.y = 0.0
 
 
 func forward() -> Vector3:

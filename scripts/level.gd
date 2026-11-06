@@ -15,17 +15,23 @@ const STATION_TIME := 2.5
 const BATH_POS := Vector3(-9, 0, 7)
 const FOOD_POS := Vector3(9, 0, 7)
 const DESK_POS := Vector3(0, 0, -10)
+const BIN_POS := Vector3(11, 0, -9)
+const CATCH_RANGE := 1.5
+const POOP_PENALTY := 2
 const ARRIVAL_POS := Vector3(0, 0.5, -12)
 const MUD_SPOTS: Array[Vector3] = [Vector3(-5, 0, -3), Vector3(6, 0, -6), Vector3(2, 0, 9)]
 const MUD_RADIUS := 1.6
 
 var players_root: Node3D
 var dogs_root: Node3D
+var poops_root: Node3D
 var hud: Hud
 var camera: Camera3D
 
 var _player_spawner: MultiplayerSpawner
 var _dog_spawner: MultiplayerSpawner
+var _poop_spawner: MultiplayerSpawner
+var _next_poop_id := 1
 var _desk_label: Label3D
 
 # --- Estado del anfitrión ---
@@ -64,6 +70,9 @@ func _ready() -> void:
 	dogs_root = Node3D.new()
 	dogs_root.name = "Dogs"
 	add_child(dogs_root)
+	poops_root = Node3D.new()
+	poops_root.name = "Poops"
+	add_child(poops_root)
 
 	_player_spawner = MultiplayerSpawner.new()
 	_player_spawner.name = "PlayerSpawner"
@@ -76,6 +85,12 @@ func _ready() -> void:
 	_dog_spawner.spawn_path = NodePath("../Dogs")
 	_dog_spawner.spawn_function = _spawn_dog
 	add_child(_dog_spawner)
+
+	_poop_spawner = MultiplayerSpawner.new()
+	_poop_spawner.name = "PoopSpawner"
+	_poop_spawner.spawn_path = NodePath("../Poops")
+	_poop_spawner.spawn_function = func(data: Dictionary) -> Node: return Poop.create(data)
+	add_child(_poop_spawner)
 
 	hud = Hud.new()
 	add_child(hud)
@@ -138,6 +153,9 @@ func _build_world() -> void:
 	add_child(Shapes.label("COMEDERO", FOOD_POS + Vector3(0, 2.0, 0), 60))
 
 	add_child(Shapes.wall(Vector3(4, 1.0, 0.8), DESK_POS + Vector3(0, 0.5, -1.4), Color(0.3, 0.45, 0.7)))
+	add_child(Shapes.wall(Vector3(1.2, 1.3, 1.2), BIN_POS + Vector3(0, 0.65, 0), Color(0.25, 0.5, 0.3)))
+	add_child(Shapes.label("CONTENEDOR", BIN_POS + Vector3(0, 2.0, 0), 50))
+
 	_desk_label = Shapes.label("ADOPCIONES", DESK_POS + Vector3(0, 2.4, -1.4), 60)
 	add_child(_desk_label)
 
@@ -169,6 +187,22 @@ func _update_camera(delta: float) -> void:
 
 func input_enabled() -> bool:
 	return _day_running_local
+
+
+func poops() -> Array[Poop]:
+	var out: Array[Poop] = []
+	for p in poops_root.get_children():
+		if p is Poop and not p.is_queued_for_deletion():
+			out.append(p)
+	return out
+
+
+## Lo usa cada jugador (en su propio equipo) para saber si ha pisado una caca.
+func poop_under(pos: Vector3) -> bool:
+	for p in poops():
+		if p.on_floor() and _near(pos, p.position, 0.5):
+			return true
+	return false
 
 
 func get_player(peer: int) -> Player:
@@ -246,6 +280,9 @@ func _on_peer_disconnected(peer: int) -> void:
 		if d.carried_by == peer:
 			var p := get_player(peer)
 			d.on_dropped(p.global_position if p else ARRIVAL_POS)
+	for pp in poops():
+		if pp.carried_by == peer:
+			pp.carried_by = 0
 	var player := get_player(peer)
 	if player:
 		player.queue_free()
@@ -255,7 +292,7 @@ func _on_peer_disconnected(peer: int) -> void:
 func _start_day() -> void:
 	_time_left = DAY_LENGTH
 	_adopters.clear()
-	_day_stats = {"adopted": 0, "perfect": 0, "escaped": 0, "returned": 0, "rejected": 0}
+	_day_stats = {"adopted": 0, "perfect": 0, "escaped": 0, "returned": 0, "rejected": 0, "catches": 0, "poops": 0}
 	_arrival_timer = 4.0
 	_adopter_timer = 6.0
 
@@ -321,6 +358,13 @@ func _host_tick(delta: float) -> void:
 
 	for d in dogs():
 		_tick_dog(d, delta)
+	for pp in poops():
+		if pp.carried_by != 0:
+			var holder := get_player(pp.carried_by)
+			if holder:
+				pp.position = holder.global_position + Vector3(0, 1.3, 0) + holder.forward() * 0.45
+			else:
+				pp.carried_by = 0
 
 	_sync_timer -= delta
 	if _sync_timer <= 0.0:
@@ -332,9 +376,16 @@ func _host_tick(delta: float) -> void:
 
 
 func _tick_dog(d: Dog, delta: float) -> void:
-	if d.carried_by != 0:
+	if d.carried_by != 0 or d.airborne:
 		return
 	var p := d.global_position
+
+	# Cacas: un rato después de comer.
+	if d.poop_timer > 0.0:
+		d.poop_timer -= delta
+		if d.poop_timer <= 0.0 and is_inside_fence(p) and poops().size() < 12:
+			_poop_spawner.spawn({"id": _next_poop_id, "pos": Vector3(p.x, 0.0, p.z) + d.global_transform.basis.z * 0.6})
+			_next_poop_id += 1
 
 	# Barro.
 	for m in MUD_SPOTS:
@@ -363,6 +414,7 @@ func _tick_dog(d: Dog, delta: float) -> void:
 	elif _near(p, FOOD_POS) and d.hungry:
 		_work_station(d, delta, "comiendo...", func() -> void:
 			d.hungry = false
+			d.poop_timer = _rng.randf_range(12.0, 25.0)
 			d.hunger_timer = _rng.randf_range(45.0, 80.0))
 	else:
 		d.activity = ""
@@ -427,9 +479,12 @@ func _end_day() -> void:
 	var count := dogs().size()
 	var costs := count * 8
 	_money -= costs
+	var left_poops := poops().size()
+	_reputation -= left_poops * POOP_PENALTY
 	var s := _day_stats
-	var text := "Fin del día %d\n\nAdopciones: %d (perfectas: %d)\nRechazos en el mostrador: %d\nFugas: %d\nDevoluciones recibidas hoy: %d\n\nGastos de comida y cuidados: -%d € (%d perros)\nDinero: %d €   ·   Reputación: %d" % [
+	var text := "Fin del día %d\n\nAdopciones: %d (perfectas: %d)\nRechazos en el mostrador: %d\nFugas: %d\nDevoluciones recibidas hoy: %d\nAtrapados al vuelo: %d\nCacas recogidas: %d · sin recoger: %d (-%d reputación)\n\nGastos de comida y cuidados: -%d € (%d perros)\nDinero: %d €   ·   Reputación: %d" % [
 		_day, s["adopted"], s["perfect"], s["rejected"], s["escaped"], s["returned"],
+		s["catches"], s["poops"], left_poops, left_poops * POOP_PENALTY,
 		costs, count, _money, _reputation]
 	var over := _reputation <= 0
 	if over:
@@ -455,6 +510,8 @@ func _reset_game() -> void:
 	_returns_tomorrow.clear()
 	for d in dogs():
 		d.queue_free()
+	for pp in poops():
+		pp.queue_free()
 
 
 # =====================================================================
@@ -480,23 +537,150 @@ func _handle_interact(peer: int) -> void:
 	var p := get_player(peer)
 	if p == null:
 		return
-	for d in dogs():
-		if d.carried_by == peer:
-			var drop := p.global_position + p.forward() * 1.1
-			drop.y = 0.3
-			d.on_dropped(drop)
-			return
-	var nearest: Dog = null
+
+	# ¿Lleva algo? Entonces lo suelta.
+	var held_dog := _dog_held_by(peer)
+	if held_dog:
+		var drop := p.global_position + p.forward() * 1.1
+		drop.y = 0.3
+		held_dog.on_dropped(drop)
+		return
+	var held_poop := _poop_held_by(peer)
+	if held_poop:
+		_drop_poop(held_poop, p)
+		return
+
+	# Si no, coge lo más cercano: perro o caca.
+	var nearest: Node3D = null
 	var best := GRAB_RANGE
 	for d in dogs():
-		if d.carried_by != 0:
+		if d.carried_by != 0 or d.airborne:
 			continue
-		var dist := Vector2(d.global_position.x - p.global_position.x, d.global_position.z - p.global_position.z).length()
+		var dist := _flat_dist(d.global_position, p.global_position)
 		if dist < best:
 			best = dist
 			nearest = d
-	if nearest:
-		nearest.on_grabbed(peer)
+	for pp in poops():
+		if pp.carried_by != 0:
+			continue
+		var dist := _flat_dist(pp.position, p.global_position)
+		if dist < best:
+			best = dist
+			nearest = pp
+	if nearest is Dog:
+		(nearest as Dog).on_grabbed(peer)
+	elif nearest is Poop:
+		(nearest as Poop).carried_by = peer
+
+
+func _drop_poop(pp: Poop, p: Player) -> void:
+	pp.carried_by = 0
+	if _near(p.global_position, BIN_POS, 2.2):
+		_day_stats["poops"] += 1
+		pp.queue_free()
+		_toast.rpc("¡Caca al contenedor!")
+	else:
+		var at := p.global_position + p.forward() * 0.9
+		pp.position = Vector3(at.x, 0.0, at.z)
+
+
+func _dog_held_by(peer: int) -> Dog:
+	for d in dogs():
+		if d.carried_by == peer:
+			return d
+	return null
+
+
+func _poop_held_by(peer: int) -> Poop:
+	for pp in poops():
+		if pp.carried_by == peer:
+			return pp
+	return null
+
+
+func _flat_dist(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
+# --- Lanzar y atrapar ---
+
+func send_throw() -> void:
+	if multiplayer.is_server():
+		_handle_throw(1)
+	else:
+		_rpc_throw.rpc_id(1)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_throw() -> void:
+	if multiplayer.is_server():
+		_handle_throw(multiplayer.get_remote_sender_id())
+
+
+func _handle_throw(peer: int) -> void:
+	if not _running:
+		return
+	var p := get_player(peer)
+	if p == null:
+		return
+	var d := _dog_held_by(peer)
+	if d:
+		d.global_position = p.global_position + Vector3(0, 1.5, 0) + p.forward() * 0.6
+		d.throw(p.forward(), peer)
+		return
+	var pp := _poop_held_by(peer)
+	if pp:
+		_drop_poop(pp, p)
+
+
+## Llamado por un perro en vuelo: si pasa cerca de alguien con las manos libres, lo atrapa.
+func try_catch(d: Dog) -> void:
+	for p: Player in players_root.get_children():
+		if p.peer_id == d.thrown_by and d.fly_time < 0.6:
+			continue
+		if _dog_held_by(p.peer_id) or _poop_held_by(p.peer_id):
+			continue
+		var h := d.global_position.y - p.global_position.y
+		if h < 0.3 or h > 2.6:
+			continue
+		if _flat_dist(d.global_position, p.global_position) < CATCH_RANGE:
+			var thrower := d.thrown_by
+			d.on_grabbed(p.peer_id)
+			if thrower != 0 and thrower != p.peer_id:
+				_day_stats["catches"] += 1
+				_toast.rpc("¡J%d ha atrapado a %s al vuelo!" % [p.slot + 1, d.dog_name])
+			return
+
+
+# --- Resbalones ---
+
+func send_slip() -> void:
+	if multiplayer.is_server():
+		_handle_slip(1)
+	else:
+		_rpc_slip.rpc_id(1)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_slip() -> void:
+	if multiplayer.is_server():
+		_handle_slip(multiplayer.get_remote_sender_id())
+
+
+func _handle_slip(peer: int) -> void:
+	var p := get_player(peer)
+	if p == null:
+		return
+	# Al resbalar se te cae lo que llevas.
+	var d := _dog_held_by(peer)
+	if d:
+		d.global_position = p.global_position + Vector3(0, 1.2, 0)
+		d.throw(Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)), 0)
+		d.fly_velocity *= 0.5
+	var pp := _poop_held_by(peer)
+	if pp:
+		_drop_poop(pp, p)
+	_toast.rpc("¡J%d ha pisado una caca!" % (p.slot + 1))
 
 
 func dog_slipped(d: Dog) -> void:

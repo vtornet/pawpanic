@@ -63,10 +63,12 @@ func _setup_input() -> void:
 		"move_right": [KEY_D, KEY_RIGHT],
 		"interact": [KEY_E, KEY_SPACE],
 		"dash": [KEY_SHIFT],
+		"throw": [KEY_Q],
 	}
 	var pad_buttons := {
 		"interact": JOY_BUTTON_A,
 		"dash": JOY_BUTTON_B,
+		"throw": JOY_BUTTON_X,
 	}
 	for action: String in actions:
 		if not InputMap.has_action(action):

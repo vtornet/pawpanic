@@ -41,7 +41,7 @@ func _ready() -> void:
 	var help := _make_label(root, 18)
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.position = Vector2(24, -40)
-	help.text = "WASD mover · E coger/soltar · Shift impulso   |   Baño: deja al perro sucio · Comedero: deja al perro con hambre · Mostrador: entrega al adoptante"
+	help.text = "WASD mover · E coger/soltar · Q lanzar · Shift impulso   |   Bañera · Comedero · Mostrador de adopciones · Cacas al contenedor"
 	help.modulate = Color(1, 1, 1, 0.75)
 
 	_summary = PanelContainer.new()
