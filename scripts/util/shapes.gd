@@ -4,7 +4,23 @@ extends RefCounted
 ## Cuando tengas modelos de Blender, se sustituyen estas llamadas por escenas .glb.
 
 
+static var _mat_cache := {}
+
+
+## Material liso de un color. Se comparte entre todas las piezas del mismo color (más rápido);
+## quien necesite cambiarlo (emisión, transparencia) debe usar mat_unique().
 static func mat(color: Color, roughness: float = 0.85) -> StandardMaterial3D:
+	var key := "%s|%.2f" % [color.to_html(), roughness]
+	if not _mat_cache.has(key):
+		_mat_cache[key] = mat_unique(color, roughness)
+	return _mat_cache[key]
+
+
+static func clear() -> void:
+	_mat_cache.clear()
+
+
+static func mat_unique(color: Color, roughness: float = 0.85) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
 	m.roughness = roughness

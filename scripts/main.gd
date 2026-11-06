@@ -5,6 +5,7 @@ extends Node
 ##   --smoke          prueba automática de la simulación y cierra
 ##   --tutorial-test  juega el tutorial completo y cierra
 ##   --balance        simula un año con varios estilos de juego (solo lógica) y muestra resultados
+##   --shots=DIR      hace capturas de pantalla de varias zonas en DIR (necesita pantalla, no --headless)
 ##   --quit-after=N   cierra tras N segundos
 
 var world: World
@@ -40,5 +41,9 @@ func _ready() -> void:
 			var tt: Node = load("res://tests/tutorial_test.gd").new()
 			add_child(tt)
 			tt.run.call_deferred(world, ui)
+		elif arg.begins_with("--shots="):
+			var sh: Node = load("res://tests/screenshots.gd").new()
+			add_child(sh)
+			sh.run.call_deferred(world, ui, arg.get_slice("=", 1))
 		elif arg.begins_with("--quit-after="):
 			get_tree().create_timer(float(arg.get_slice("=", 1))).timeout.connect(get_tree().quit)

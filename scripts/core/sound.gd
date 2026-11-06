@@ -62,6 +62,8 @@ func _exit_tree() -> void:
 	for c in get_tree().root.find_children("*", "AudioStreamPlayer3D", true, false):
 		(c as AudioStreamPlayer3D).stream = null
 	_cache.clear()
+	Models.clear()
+	Shapes.clear()
 
 
 # ---------------------------------------------------------------------

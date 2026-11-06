@@ -15,8 +15,8 @@ var _walkers: Array = []   # {node, path, i, speed}
 var _cars: Array = []      # {node, path, i, speed, cur}
 var _lamps_on := false
 
-const DAY_SKY_TOP := Color(0.35, 0.55, 0.85)
-const DAY_SKY_HORIZON := Color(0.75, 0.82, 0.9)
+const DAY_SKY_TOP := Color(0.27, 0.55, 0.93)
+const DAY_SKY_HORIZON := Color(0.72, 0.86, 0.98)
 const DUSK_SKY_TOP := Color(0.25, 0.3, 0.55)
 const DUSK_SKY_HORIZON := Color(0.98, 0.6, 0.35)
 const NIGHT_SKY_TOP := Color(0.04, 0.06, 0.15)
@@ -54,10 +54,10 @@ func _update_sky() -> void:
 	sun.rotation_degrees = Vector3(-elevation, -100.0 + f * 200.0, 0)
 	var day := clampf(elevation / 32.0, 0.0, 1.0)       # 0 = sol bajo, 1 = pleno día
 	var dusk := clampf(1.0 - absf(elevation - 8.0) / 24.0, 0.0, 1.0) * float(hour > 15.0)  # tarde dorada
-	sun.light_energy = 0.15 + 0.75 * day
-	sun.light_color = Color(1, 0.98, 0.94).lerp(Color(1.0, 0.62, 0.35), dusk * 0.85)
-	env.ambient_light_energy = 0.3 + 0.27 * day
-	env.ambient_light_color = Color(0.62, 0.66, 0.72).lerp(Color(0.55, 0.5, 0.6), dusk)
+	sun.light_energy = 0.18 + 0.92 * day
+	sun.light_color = Color(1, 0.96, 0.88).lerp(Color(1.0, 0.62, 0.35), dusk * 0.85)
+	env.ambient_light_energy = 0.45 + 0.4 * day
+	env.ambient_light_color = Color(0.64, 0.68, 0.8).lerp(Color(0.58, 0.5, 0.62), dusk)
 	var top := DAY_SKY_TOP.lerp(DUSK_SKY_TOP, dusk)
 	var horizon := DAY_SKY_HORIZON.lerp(DUSK_SKY_HORIZON, dusk)
 	if elevation < 2.0:
@@ -88,9 +88,15 @@ func _build_lamps() -> void:
 		spots.append(Vector3(x, 0, -5.5))
 	spots.append_array([Vector3(-9, 0, -9), Vector3(9, 0, 9), Vector3(9, 0, -9), Vector3(-9, 0, 9)])
 	for p in spots:
-		add_child(Shapes.box(Vector3(0.15, 4.5, 0.15), Color(0.2, 0.2, 0.22), p + Vector3(0, 2.25, 0)))
-		var bulb := Shapes.box(Vector3(0.5, 0.25, 0.5), Color(1, 0.95, 0.75), p + Vector3(0, 4.55, 0))
-		var m := bulb.material_override as StandardMaterial3D
+		# Farola de forja: base, poste, brazo y farol.
+		var iron := Color(0.16, 0.2, 0.18)
+		add_child(Shapes.cylinder(0.18, 0.5, iron, p + Vector3(0, 0.25, 0)))
+		add_child(Shapes.cylinder(0.07, 4.3, iron, p + Vector3(0, 2.4, 0)))
+		add_child(Shapes.cylinder(0.2, 0.12, iron, p + Vector3(0, 4.42, 0)))
+		add_child(Shapes.box(Vector3(0.42, 0.06, 0.42), iron, p + Vector3(0, 4.82, 0)))
+		var bulb := Shapes.box(Vector3(0.34, 0.34, 0.34), Color(1, 0.95, 0.75), p + Vector3(0, 4.62, 0))
+		var m := (bulb.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
+		bulb.material_override = m
 		m.emission = Color(1, 0.85, 0.5)
 		m.emission_energy_multiplier = 3.0
 		_lamp_bulbs.append(m)
@@ -112,15 +118,19 @@ func _build_lamps() -> void:
 const NEIGHBOR_NAMES := ["Paqui", "Don Manuel", "Antoñito", "Reme", "Juan Carlos", "Loli", "Pepe", "Charo", "Fran", "Mari Ángeles"]
 
 
+## Recorridos de los vecinos (también los usa Scenery para dejar libres y pavimentar esos caminos).
+const WALK_LOOPS := [
+	[Vector3(-11, 0, -11), Vector3(11, 0, -11), Vector3(11, 0, 11), Vector3(-11, 0, 11)],
+	[Vector3(5.5, 0, -70), Vector3(5.5, 0, 30), Vector3(-5.5, 0, 30), Vector3(-5.5, 0, -70)],
+	[Vector3(-70, 0, 5.5), Vector3(70, 0, 5.5), Vector3(70, 0, -5.5), Vector3(-70, 0, -5.5)],
+	[Vector3(-22, 0, -10), Vector3(-22, 0, 30), Vector3(-40, 0, 30), Vector3(-40, 0, -10)],
+	[Vector3(22, 0, -32), Vector3(40, 0, -32), Vector3(40, 0, 32), Vector3(22, 0, 32)],
+]
+
+
 func _build_walkers() -> void:
 	# Recorridos por las aceras: alrededor de la plaza y a lo largo de las calles principales.
-	var loops := [
-		[Vector3(-11, 0, -11), Vector3(11, 0, -11), Vector3(11, 0, 11), Vector3(-11, 0, 11)],
-		[Vector3(5.5, 0, -70), Vector3(5.5, 0, 30), Vector3(-5.5, 0, 30), Vector3(-5.5, 0, -70)],
-		[Vector3(-70, 0, 5.5), Vector3(70, 0, 5.5), Vector3(70, 0, -5.5), Vector3(-70, 0, -5.5)],
-		[Vector3(-22, 0, -10), Vector3(-22, 0, 30), Vector3(-40, 0, 30), Vector3(-40, 0, -10)],
-		[Vector3(22, 0, -32), Vector3(40, 0, -32), Vector3(40, 0, 32), Vector3(22, 0, 32)],
-	]
+	var loops := WALK_LOOPS
 	var r := RandomNumberGenerator.new()
 	r.seed = 42
 	var shirts := [Color(0.8, 0.3, 0.3), Color(0.3, 0.5, 0.8), Color(0.9, 0.8, 0.3), Color(0.5, 0.35, 0.7), Color(0.35, 0.7, 0.45), Color(0.95, 0.95, 0.95)]
@@ -192,26 +202,20 @@ func _build_cars() -> void:
 			"engine": engine, "honk": 0.0})
 
 
-func _make_car(color: Color) -> Node3D:
+const CAR_MODELS := ["car/sedan", "car/suv", "car/taxi", "car/hatchback-sports", "car/van", "car/police", "car/delivery", "car/truck"]
+
+
+func _make_car(_color: Color) -> Node3D:
 	var car := AnimatableBody3D.new()
 	car.sync_to_physics = false
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(1.8, 1.4, 4.0)
+	shape.size = Vector3(1.8, 1.6, 3.6)
 	col.shape = shape
 	col.position.y = 0.8
 	car.add_child(col)
-	car.add_child(Shapes.box(Vector3(1.8, 0.8, 4.0), color, Vector3(0, 0.6, 0)))
-	car.add_child(Shapes.box(Vector3(1.6, 0.6, 2.0), Color(0.45, 0.6, 0.75), Vector3(0, 1.3, 0.2)))
-	for x in [-0.85, 0.85]:
-		for z in [-1.3, 1.3]:
-			var w := Shapes.cylinder(0.35, 0.25, Color(0.1, 0.1, 0.1), Vector3(x, 0.35, z))
-			w.rotation.z = PI / 2
-			car.add_child(w)
-	# Faros.
-	for x in [-0.6, 0.6]:
-		car.add_child(Shapes.box(Vector3(0.35, 0.18, 0.05), Color(1, 1, 0.85), Vector3(x, 0.7, -2.02)))
-		car.add_child(Shapes.box(Vector3(0.35, 0.15, 0.05), Color(0.8, 0.1, 0.1), Vector3(x, 0.7, 2.02)))
+	var model: String = CAR_MODELS[_cars.size() % CAR_MODELS.size()]
+	car.add_child(Models.spawn(model, 1.25))
 	return car
 
 

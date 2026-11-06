@@ -27,6 +27,7 @@ var _step_dist := 0.0
 var _was_on_floor := true
 var _air_time := 0.0
 var _probe_t := 0.0
+var _anim: AnimationPlayer             # animaciones del personaje (se ve en tercera persona)
 var _engine: AudioStreamPlayer        # motor del vehículo (marcha)
 var _engine_idle: AudioStreamPlayer   # ralentí (solo el coche)
 
@@ -45,8 +46,14 @@ func _ready() -> void:
 
 	_body_visual = Node3D.new()
 	add_child(_body_visual)
-	_body_visual.add_child(Shapes.capsule(0.35, 1.75, Color(0.2, 0.55, 0.45), Vector3(0, 0.875, 0)))
-	_body_visual.add_child(Shapes.box(Vector3(0.45, 0.5, 0.3), Color(0.9, 0.55, 0.2), Vector3(0, 1.15, 0.25)))  # mochila
+	var me := Models.spawn("mini-characters/character-male-f", Npc.SCALE)
+	_body_visual.add_child(me)
+	_anim = Models.anim_player(me)
+	if _anim:
+		for a in ["idle", "walk", "sprint", "drive"]:
+			if _anim.has_animation(a):
+				_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+		_anim.play("idle")
 
 	_carried_visual = Node3D.new()
 	_carried_visual.position = Vector3(0, 0, 0)
@@ -145,6 +152,18 @@ func _sounds(delta: float, on_foot: bool) -> void:
 		_air_time = 0.0
 	_was_on_floor = floor
 	_update_engine(hspeed)
+	if _anim and third_person:
+		var want := "idle"
+		if not on_foot:
+			want = "drive"
+		elif not floor:
+			want = "jump"
+		elif hspeed > 6.0:
+			want = "sprint"
+		elif hspeed > 0.6:
+			want = "walk"
+		if _anim.current_animation != want and _anim.has_animation(want):
+			_anim.play(want, 0.2)
 
 
 func _roof_above() -> bool:
@@ -238,16 +257,38 @@ func _sync_vehicle() -> void:
 	add_child(_vehicle_visual)
 	match v:
 		"bici":
-			_vehicle_visual.add_child(Shapes.box(Vector3(0.1, 0.7, 1.4), Color(0.8, 0.15, 0.15), Vector3(0, 0.45, 0)))
-			_vehicle_visual.add_child(Shapes.box(Vector3(0.8, 0.5, 0.9), Color(0.3, 0.3, 0.3), Vector3(0, 0.4, 1.3)))
+			# Bici con carro (no hay modelo en los packs): cuadro, ruedas y el carro detrás.
+			var red := Color(0.85, 0.2, 0.18)
+			for z in [-0.55, 0.55]:
+				var w := Shapes.cylinder(0.34, 0.06, Color(0.12, 0.12, 0.13), Vector3(0, 0.34, z))
+				w.rotation.z = PI / 2
+				_vehicle_visual.add_child(w)
+			_vehicle_visual.add_child(Shapes.box(Vector3(0.06, 0.06, 1.1), red, Vector3(0, 0.62, 0)))
+			_vehicle_visual.add_child(Shapes.box(Vector3(0.06, 0.55, 0.06), red, Vector3(0, 0.45, 0.25)))
+			_vehicle_visual.add_child(Shapes.box(Vector3(0.5, 0.05, 0.05), Color(0.2, 0.2, 0.2), Vector3(0, 0.95, -0.5)))
+			_vehicle_visual.add_child(Shapes.box(Vector3(0.22, 0.06, 0.3), Color(0.15, 0.15, 0.15), Vector3(0, 0.82, 0.25)))
+			_vehicle_visual.add_child(Shapes.box(Vector3(0.8, 0.45, 0.8), Color(0.25, 0.55, 0.45), Vector3(0, 0.48, 1.35)))
+			for x in [-0.42, 0.42]:
+				var w2 := Shapes.cylinder(0.22, 0.05, Color(0.12, 0.12, 0.13), Vector3(x, 0.22, 1.35))
+				w2.rotation.z = PI / 2
+				_vehicle_visual.add_child(w2)
 		"coche":
-			_vehicle_visual.add_child(Shapes.box(Vector3(1.8, 0.9, 3.8), Color(0.75, 0.75, 0.8), Vector3(0, 0.6, 0.6)))
-			_vehicle_visual.add_child(Shapes.box(Vector3(1.6, 0.7, 2.0), Color(0.5, 0.65, 0.8), Vector3(0, 1.3, 0.8)))
+			_vehicle_visual.add_child(Models.spawn("car/sedan", 1.25, Vector3(0.45, 0, 0.3)))
 		"furgo":
-			_vehicle_visual.add_child(Shapes.box(Vector3(2.0, 2.0, 4.6), Color(0.95, 0.95, 0.95), Vector3(0, 1.1, 1.0)))
+			_vehicle_visual.add_child(Models.spawn("car/van", 1.35, Vector3(0.45, 0, 0.5)))
 		"furgon":
-			_vehicle_visual.add_child(Shapes.box(Vector3(2.2, 2.5, 6.0), Color(0.95, 0.95, 0.95), Vector3(0, 1.35, 1.6)))
-			_vehicle_visual.add_child(Shapes.box(Vector3(2.25, 0.4, 3.0), Color(0.2, 0.6, 0.45), Vector3(0, 1.4, 2.4)))
+			_vehicle_visual.add_child(Models.spawn("car/delivery", 1.45, Vector3(0.5, 0, 0.8)))
+	_apply_camera_mode()
+
+
+## Coloca la cámara (lo usan las capturas automáticas).
+func set_view(pos: Vector3, yaw_deg: float, pitch_deg: float, third: bool = false) -> void:
+	global_position = pos
+	_yaw = deg_to_rad(yaw_deg)
+	_pitch = deg_to_rad(pitch_deg)
+	rotation.y = _yaw
+	_head.rotation.x = _pitch
+	third_person = third
 	_apply_camera_mode()
 
 

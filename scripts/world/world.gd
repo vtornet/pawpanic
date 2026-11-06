@@ -104,12 +104,24 @@ func _build_environment() -> void:
 	e.ambient_light_color = Color(0.62, 0.66, 0.72)
 	e.ambient_light_energy = 0.55
 	e.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# Estilo low-poly colorido: tonos vivos, sombras suaves con un poco de color y oclusión en las esquinas.
+	e.tonemap_mode = Environment.TONE_MAPPER_AGX
+	e.tonemap_exposure = 1.0
+	e.ssao_enabled = true
+	e.ssao_radius = 1.2
+	e.ssao_intensity = 1.6
+	e.glow_enabled = true
+	e.glow_intensity = 0.35
+	e.glow_bloom = 0.04
+	e.glow_hdr_threshold = 1.1
+	e.adjustment_enabled = true
+	e.adjustment_saturation = 1.3
+	e.adjustment_contrast = 1.06
 	# Niebla de profundidad solo a lo lejos.
 	e.fog_enabled = true
 	e.fog_mode = Environment.FOG_MODE_DEPTH
-	e.fog_depth_begin = 120.0
-	e.fog_depth_end = 320.0
+	e.fog_depth_begin = 140.0
+	e.fog_depth_end = 340.0
 	e.fog_density = 0.6
 	e.fog_light_color = Color(0.78, 0.84, 0.9)
 	env.environment = e
@@ -118,8 +130,10 @@ func _build_environment() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-50, -30, 0)
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 120
-	sun.light_energy = 0.85
+	sun.directional_shadow_max_distance = 110
+	sun.shadow_blur = 1.5
+	sun.shadow_opacity = 0.8
+	sun.light_energy = 1.0
 	add_child(sun)
 
 	# Sol según la hora, farolas, vecinos y coches.
@@ -129,51 +143,11 @@ func _build_environment() -> void:
 	ambience.setup(e, sun, mat)
 	ambience.talk.connect(talk.emit)
 
-	add_child(Shapes.wall(Vector3(340, 1, 340), Vector3(0, -0.5, 0), Color(0.45, 0.62, 0.32)))
-	# Carreteras principales en cruz y anillo.
-	var road := Color(0.3, 0.3, 0.32)
-	# La carretera norte-sur termina en el camino del refugio (las parcelas están al sur).
-	add_child(Shapes.box(Vector3(8, 0.05, 195), road, Vector3(0, 0.02, -62.5)))
-	add_child(Shapes.box(Vector3(320, 0.05, 8), road, Vector3(0, 0.02, 0)))
-	for z in [-110.0, 110.0]:
-		add_child(Shapes.box(Vector3(240, 0.05, 6), road, Vector3(0, 0.02, z)))
-	for x in [-110.0, 110.0]:
-		add_child(Shapes.box(Vector3(6, 0.05, 240), road, Vector3(x, 0.02, 0)))
-	# Plaza.
-	add_child(Shapes.box(Vector3(20, 0.06, 20), Color(0.82, 0.78, 0.68), Vector3(0, 0.03, 0)))
-	add_child(Shapes.cylinder(1.5, 1.0, Color(0.7, 0.7, 0.72), Vector3(0, 0.5, 0)))
-	# Río al suroeste.
-	add_child(Shapes.box(Vector3(14, 0.04, 260), Color(0.3, 0.5, 0.75), Vector3(-80, 0.03, 60)))
-	# Pinar al sureste.
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7
-	for i in 70:
-		var p := Vector3(rng.randf_range(60, 140), 0, rng.randf_range(70, 140))
-		if p.distance_to(Vector3(85, 0, 95)) < 8:
-			continue
-		_tree(p, rng)
-	# Casas del pueblo (decoración).
-	for i in 26:
-		var p := Vector3(rng.randf_range(-70, 70), 0, rng.randf_range(-70, 45))
-		if absf(p.x) < 9 or absf(p.z) < 9 or _near_place(p, 16):
-			continue
-		var h := rng.randf_range(4, 8)
-		add_child(Shapes.wall(Vector3(rng.randf_range(6, 10), h, rng.randf_range(6, 10)), p + Vector3(0, h / 2, 0),
-			Color.from_hsv(rng.randf_range(0.05, 0.12), 0.15, rng.randf_range(0.8, 0.95))))
-	# Lugares de los avisos: carteles.
-	for spot in Game.SPOTS:
-		if spot["name"] == "Plaza del pueblo":
-			continue
-		add_child(Shapes.box(Vector3(0.15, 2.2, 0.15), Color(0.4, 0.3, 0.2), spot["pos"] + Vector3(6, 1.1, 6)))
-		var l := Shapes.label(spot["name"], spot["pos"] + Vector3(6, 2.8, 6), 40)
-		l.pixel_size = 0.012
-		add_child(l)
-
-
-func _tree(p: Vector3, rng: RandomNumberGenerator) -> void:
-	var h := rng.randf_range(4, 7)
-	add_child(Shapes.wall(Vector3(0.5, h, 0.5), p + Vector3(0, h / 2, 0), Color(0.4, 0.28, 0.15)))
-	add_child(Shapes.cylinder(rng.randf_range(1.5, 2.3), 3.0, Color(0.2, 0.42, 0.22), p + Vector3(0, h + 0.5, 0)))
+	# Suelo, carreteras, plaza, río, casas y árboles.
+	var scenery := Scenery.new()
+	scenery.name = "Escenario"
+	add_child(scenery)
+	scenery.build(Ambience.WALK_LOOPS)
 
 
 func _near_place(p: Vector3, r: float) -> bool:
@@ -225,7 +199,7 @@ func _sync_shelter() -> void:
 		return
 	var size := float(Game.land_size())
 	var half := size / 2.0
-	_shelter.add_child(Shapes.box(Vector3(size, 0.05, size), Color(0.7, 0.62, 0.45), Vector3(0, 0.03, 0)))
+	_shelter.add_child(Models.ground(Vector2(size, size), Models.yard(), Vector3(0, 0.03, 0)))
 	var fence_h := 1.8 if Game.has_building("vallado") else 1.0
 	var fc := Color(0.45, 0.45, 0.48) if Game.has_building("vallado") else Color(0.55, 0.4, 0.25)
 	_shelter.add_child(Shapes.wall(Vector3(size, fence_h, 0.2), Vector3(0, fence_h / 2, half), fc))
@@ -234,6 +208,19 @@ func _sync_shelter() -> void:
 	var seg := half - 2.5
 	_shelter.add_child(Shapes.wall(Vector3(seg, fence_h, 0.2), Vector3(-(2.5 + seg / 2), fence_h / 2, -half), fc))
 	_shelter.add_child(Shapes.wall(Vector3(seg, fence_h, 0.2), Vector3(2.5 + seg / 2, fence_h / 2, -half), fc))
+	# Decoración del patio: árboles en las esquinas, setos junto a la valla y un camino hasta la caseta.
+	var deco_rng := RandomNumberGenerator.new()
+	deco_rng.seed = 11
+	for c in [Vector3(-1, 0, -1), Vector3(1, 0, -1), Vector3(-1, 0, 1), Vector3(1, 0, 1)]:
+		_shelter.add_child(Models.spawn_solid("nature/tree_oak", 4.0, Vector3(c.x * (half - 2.5), 0, c.z * (half - 2.5)), deco_rng.randf() * 360, Vector3(0.5, 3, 0.5)))
+	for i in int(size / 3.0):
+		var x := -half + 1.5 + i * 3.0
+		if absf(x) < 4.0:
+			continue
+		_shelter.add_child(Models.spawn("nature/plant_bush", 3.2, Vector3(x, 0, -half + 1.0), deco_rng.randf() * 360))
+	if Game.s["tier"] > 0:
+		_shelter.add_child(Models.ground(Vector2(2.4, half + HOUSE_POS.z - Interiors.SHELTER_D / 2.0), Models.tiles(Color(0.8, 0.74, 0.62), Color(0.74, 0.68, 0.56), Color(0.55, 0.5, 0.42), 0.8),
+			Vector3(0, 0.05, (-half + HOUSE_POS.z - Interiors.SHELTER_D / 2.0) / 2.0)))
 	var title := Shapes.label(Game.s["name"].to_upper(), Vector3(0, 3.6, -half), 72)
 	title.pixel_size = 0.015
 	_shelter.add_child(title)
@@ -669,7 +656,8 @@ func _make_street_animal(a: Dictionary) -> Node3D:
 	root.add_child(beacon)
 	beacon.top_level = true
 	var pillar := Shapes.cylinder(0.25, 30.0, Color(1, 0.4, 0.2), Vector3(0, 15, 0))
-	var m := pillar.material_override as StandardMaterial3D
+	var m := (pillar.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
+	pillar.material_override = m
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.albedo_color = Color(1, 0.45, 0.2, 0.35)
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -707,7 +695,8 @@ func _make_goal_marker() -> Node3D:
 	var m := Node3D.new()
 	var arrow := Shapes.box(Vector3(0.5, 0.5, 0.5), Color(1, 0.8, 0.2), Vector3(0, 0, 0))
 	arrow.rotation_degrees = Vector3(45, 0, 45)
-	var mat := arrow.material_override as StandardMaterial3D
+	var mat := (arrow.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
+	arrow.material_override = mat
 	mat.emission_enabled = true
 	mat.emission = Color(1, 0.7, 0.1)
 	mat.emission_energy_multiplier = 1.5

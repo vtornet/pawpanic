@@ -14,8 +14,22 @@ static func room(width: float, depth: float, height: float, wall_color: Color, f
 	var r := Node3D.new()
 	var hw := width / 2.0
 	var hd := depth / 2.0
-	# Suelo interior.
-	r.add_child(Shapes.box(Vector3(width, 0.06, depth), floor_color, Vector3(0, 0.03, 0)))
+	# Suelo interior: baldosas.
+	r.add_child(Shapes.box(Vector3(width, 0.06, depth), floor_color.darkened(0.2), Vector3(0, 0.03, 0)))
+	r.add_child(Models.ground(Vector2(width - WALL, depth - WALL), Models.tiles(floor_color, floor_color.darkened(0.07), floor_color.darkened(0.25), 0.9),
+		Vector3(0, 0.065, 0)))
+	# Zócalo: franja más oscura en la parte baja de las paredes interiores.
+	var band := wall_color.darkened(0.18)
+	var bh := 1.0
+	var inset := WALL / 2 + 0.02
+	r.add_child(Shapes.box(Vector3(0.02, bh, depth - WALL), band, Vector3(-hw + inset, bh / 2, 0)))
+	r.add_child(Shapes.box(Vector3(0.02, bh, depth - WALL), band, Vector3(hw - inset, bh / 2, 0)))
+	r.add_child(Shapes.box(Vector3(width - WALL, bh, 0.02), band, Vector3(0, bh / 2, hd - inset)))
+	var side_in := (width - DOOR_W) / 2.0 - WALL / 2
+	for sx in [-1.0, 1.0]:
+		r.add_child(Shapes.box(Vector3(side_in, bh, 0.02), band, Vector3(sx * (DOOR_W / 2 + side_in / 2), bh / 2, -hd + inset)))
+	# Techo claro por dentro.
+	r.add_child(Shapes.box(Vector3(width - WALL, 0.02, depth - WALL), Color(0.97, 0.96, 0.93), Vector3(0, height - 0.01, 0)))
 	# Paredes laterales y trasera.
 	r.add_child(Shapes.wall(Vector3(WALL, height, depth), Vector3(-hw, height / 2, 0), wall_color))
 	r.add_child(Shapes.wall(Vector3(WALL, height, depth), Vector3(hw, height / 2, 0), wall_color))
@@ -34,8 +48,13 @@ static func room(width: float, depth: float, height: float, wall_color: Color, f
 	for x in [-(DOOR_W / 2 + side / 2), DOOR_W / 2 + side / 2]:
 		if side > 1.6:
 			r.add_child(Shapes.box(Vector3(minf(side - 0.8, 2.2), 1.1, WALL + 0.04), Color(0.55, 0.75, 0.9), Vector3(x, 1.7, -hd)))
-	# Techo.
+	# Techo y alero.
 	r.add_child(Shapes.wall(Vector3(width + 0.6, 0.25, depth + 0.6), Vector3(0, height + 0.12, 0), roof_color))
+	r.add_child(Shapes.box(Vector3(width + 0.8, 0.12, depth + 0.8), roof_color.darkened(0.2), Vector3(0, height + 0.3, 0)))
+	# Fachada: toldo sobre la puerta, macetas y felpudo.
+	r.add_child(Models.prop("city-commercial/detail-awning-wide", 3.6, Vector3(0, DOOR_H + 0.05, -hd - 0.35)))
+	for sx in [-1.0, 1.0]:
+		r.add_child(Models.prop("city-suburban/planter", 3.0, Vector3(sx * (DOOR_W / 2 + 0.9), 0, -hd - 0.55)))
 	# Luz interior.
 	var light := OmniLight3D.new()
 	light.position = Vector3(0, height - 0.5, 0)
@@ -47,6 +66,11 @@ static func room(width: float, depth: float, height: float, wall_color: Color, f
 	# Lámpara visible.
 	r.add_child(Shapes.box(Vector3(1.2, 0.08, 0.4), Color(1, 1, 0.9), Vector3(0, height - 0.08, 0)))
 	return r
+
+
+## Mueble de los packs (escala de los muebles de Kenney: ×2 ≈ tamaño real).
+static func _prop(parent: Node3D, path: String, pos: Vector3, rot: float = 0.0, sc: float = 2.0, solid: bool = false) -> void:
+	parent.add_child(Models.prop(path, sc, pos, rot, solid))
 
 
 static func _interact(parent: Node3D, prompt: String, action: Callable, pos: Vector3, radius: float = 1.9) -> void:
@@ -111,6 +135,19 @@ static func clinic(open: Callable, talk: Callable) -> Node3D:
 	for i in 3:
 		r.add_child(Shapes.wall(Vector3(1.0, 0.8, 0.8), Vector3(1.4 + i * 1.1, 0.4, 4.5), Color(0.85, 0.85, 0.88)))  # jaulas de hospitalización
 	_sign(r, "HOSPITALIZACIÓN", Vector3(2.5, 2.6, 4.7), 0.006)
+	# Mobiliario.
+	_prop(r, "furniture/computerScreen", Vector3(3.7, 1.16, -2.2), 180.0)
+	_prop(r, "furniture/computerKeyboard", Vector3(3.2, 1.16, -2.0), 180.0)
+	_prop(r, "furniture/plantSmall2", Vector3(2.0, 1.16, -2.3), 0.0, 2.5)
+	_prop(r, "furniture/pottedPlant", Vector3(-6.0, 0.06, -4.2), 0.0, 2.4)
+	_prop(r, "furniture/pottedPlant", Vector3(-1.2, 0.06, -4.3), 0.0, 2.4)
+	_prop(r, "furniture/tableCoffee", Vector3(-4.2, 0.06, -2.9), 0.0, 2.0)
+	_prop(r, "furniture/trashcan", Vector3(6.0, 0.06, -4.3))
+	_prop(r, "furniture/bookcaseClosedDoors", Vector3(-6.1, 0.06, 0.2), -90.0, 2.2, true)
+	_prop(r, "furniture/coatRackStanding", Vector3(-0.9, 0.06, 1.6))
+	_prop(r, "furniture/rugDoormat", Vector3(0, 0.07, -4.3), 0.0, 2.4)
+	_prop(r, "furniture/sideTableDrawers", Vector3(-1.1, 0.06, 4.4), 180.0)
+	_prop(r, "furniture/kitchenSink", Vector3(-1.4, 0.06, 4.45), 180.0)
 	return r
 
 
@@ -120,9 +157,9 @@ static func clinic(open: Callable, talk: Callable) -> Node3D:
 static func grooming(open: Callable, talk: Callable) -> Node3D:
 	var r := room(10.0, 8.0, 3.6, Color(1.0, 0.88, 0.92), Color(0.92, 0.92, 0.9), Color(0.6, 0.35, 0.45))
 	# Bañera.
-	r.add_child(Shapes.wall(Vector3(2.2, 0.9, 1.1), Vector3(-2.5, 0.45, 2.6), Color(0.95, 0.95, 0.97)))
-	r.add_child(Shapes.box(Vector3(1.9, 0.05, 0.8), Color(0.45, 0.7, 0.95), Vector3(-2.5, 0.92, 2.6)))
-	r.add_child(Shapes.box(Vector3(0.08, 0.8, 0.08), Color(0.7, 0.7, 0.72), Vector3(-2.5, 1.4, 3.2)))  # grifo
+	r.add_child(Shapes.wall(Vector3(2.4, 0.5, 1.2), Vector3(-2.5, 0.25, 2.6), Color(0.85, 0.85, 0.88)))  # tarima
+	_prop(r, "furniture/bathtub", Vector3(-2.5, 0.5, 2.6), 180.0, 2.0)
+	_prop(r, "furniture/bathroomMirror", Vector3(-2.5, 1.6, 3.7), 180.0, 2.0)
 	_sign(r, "BAÑO", Vector3(-2.5, 2.3, 3.8))
 	_interact(r, "Bañera: baño y desparasitación", open.bind("peluqueria"), Vector3(-2.5, 1, 1.6))
 	# Mesa de corte y secador.
@@ -137,6 +174,11 @@ static func grooming(open: Callable, talk: Callable) -> Node3D:
 	r.add_child(Shapes.wall(Vector3(0.4, 2.0, 2.4), Vector3(-4.7, 1.0, -1.0), Color(0.85, 0.85, 0.85)))
 	for i in 6:
 		r.add_child(Shapes.cylinder(0.1, 0.3, Color.from_hsv(i / 6.0, 0.5, 0.95), Vector3(-4.45, 1.2 + (i % 2) * 0.5, -1.9 + i * 0.35)))
+	_prop(r, "furniture/washerDryerStacked", Vector3(4.5, 0.06, 0.6), 90.0, 2.0, true)
+	_prop(r, "furniture/pottedPlant", Vector3(-4.4, 0.06, -3.3), 0.0, 2.2)
+	_prop(r, "furniture/chairCushion", Vector3(-2.6, 0.06, -3.2), 0.0)
+	_prop(r, "furniture/chairCushion", Vector3(-1.6, 0.06, -3.2), 0.0)
+	_prop(r, "furniture/rugRound", Vector3(1.8, 0.07, 1.0), 0.0, 2.2)
 	return r
 
 
@@ -149,19 +191,18 @@ static func shop(open: Callable, talk: Callable) -> Node3D:
 	# Estanterías con sacos y productos.
 	for row in 3:
 		var x := -4.0 + row * 3.0
-		r.add_child(Shapes.wall(Vector3(0.8, 2.2, 4.5), Vector3(x, 1.1, 2.0), wood))
-		for k in 5:
-			for lvl in 2:
-				var c: Color = [Color(0.85, 0.3, 0.2), Color(0.2, 0.5, 0.8), Color(0.9, 0.75, 0.3), Color(0.3, 0.65, 0.35)][(row + k + lvl) % 4]
-				for side in [-1.0, 1.0]:
-					r.add_child(Shapes.box(Vector3(0.25, 0.55, 0.7), c, Vector3(x + side * 0.53, 0.5 + lvl * 0.9, 0.2 + k * 0.85)))
+		for k in 3:
+			_prop(r, ["mini-market/shelf-bags", "mini-market/shelf-boxes", "mini-market/shelf-bags"][(row + k) % 3],
+				Vector3(x, 0.06, 0.5 + k * 1.5), 90.0, 2.0, true)
 	_sign(r, "PIENSOS", Vector3(-4.0, 2.8, 2.0))
 	_sign(r, "HIGIENE Y LIMPIEZA", Vector3(-1.0, 2.8, 2.0), 0.006)
 	_sign(r, "GATOS", Vector3(2.0, 2.8, 2.0))
 	_interact(r, "Estanterías: comprar productos", open.bind("tienda"), Vector3(-2.5, 1, -0.5), 1.6)
 	# Mostrador con caja.
-	r.add_child(Shapes.wall(Vector3(3.0, 1.05, 0.8), Vector3(3.6, 0.53, -2.6), wood))
-	r.add_child(Shapes.box(Vector3(0.5, 0.3, 0.4), Color(0.2, 0.2, 0.22), Vector3(4.3, 1.2, -2.6)))
+	_prop(r, "mini-market/cash-register", Vector3(3.6, 0.06, -2.6), 0.0, 2.0, true)
+	_prop(r, "mini-market/shopping-basket", Vector3(-1.2, 0.06, -4.2), 0.0, 2.0)
+	_prop(r, "mini-market/shopping-cart", Vector3(-0.4, 0.06, -4.2), 20.0, 2.0)
+	_prop(r, "mini-market/freezers-standing", Vector3(5.3, 0.06, 2.4), -90.0, 2.0, true)
 	_sign(r, "CAJA", Vector3(3.6, 2.3, -2.3))
 	_person(r, "dependiente", {"shirt": Color(0.85, 0.85, 0.8), "vest": Color(0.2, 0.45, 0.25), "pants": Color(0.3, 0.25, 0.2), "hair": Color(0.45, 0.45, 0.45)}, Vector3(3.6, 0.06, -1.7), talk)
 	# Palé de sacos junto a la entrada.
@@ -189,9 +230,15 @@ static func town_hall(open: Callable, talk: Callable) -> Node3D:
 		r.add_child(Shapes.wall(Vector3(3.2, 3.0, 0.1), Vector3(dk["x"], 1.5, 5.3), dk["color"].lightened(0.5)))
 		_sign(r, dk["name"], Vector3(dk["x"], 3.2, 5.2), 0.007)
 		_person(r, dk["who"], dk["look"], Vector3(dk["x"], 0.06, 3.9), talk)
+		_prop(r, "furniture/computerScreen", Vector3(dk["x"] + 0.8, 1.16, 3.0), 180.0)
+		_prop(r, "furniture/books", Vector3(dk["x"] - 0.9, 1.16, 3.1), 0.0, 2.0)
 	# Bancos de espera y bandera.
 	for x in [-4.0, 4.0]:
-		r.add_child(Shapes.wall(Vector3(2.4, 0.45, 0.6), Vector3(x, 0.23, -2.5), Color(0.5, 0.35, 0.22)))
+		_prop(r, "furniture/loungeSofa", Vector3(x, 0.06, -2.5), 180.0, 2.2, true)
+	for x in [-7.0, 7.0]:
+		_prop(r, "furniture/pottedPlant", Vector3(x, 0.06, -4.8), 0.0, 2.6)
+	_prop(r, "furniture/bookcaseClosedWide", Vector3(7.0, 0.06, 1.5), 90.0, 2.2, true)
+	_prop(r, "furniture/rugRectangle", Vector3(0, 0.07, -2.0), 0.0, 2.4)
 	r.add_child(Shapes.box(Vector3(0.06, 3.0, 0.06), Color(0.8, 0.8, 0.8), Vector3(-6.8, 1.5, 4.5)))
 	r.add_child(Shapes.box(Vector3(0.05, 0.6, 0.9), Color(0.8, 0.15, 0.15), Vector3(-6.8, 2.6, 4.0)))
 	r.add_child(Shapes.box(Vector3(0.06, 0.25, 0.9), Color(0.95, 0.8, 0.1), Vector3(-6.78, 2.6, 4.0)))
@@ -215,6 +262,10 @@ static func wildlife_center(open: Callable, talk: Callable) -> Node3D:
 	r.add_child(Shapes.wall(Vector3(1.6, 0.3, 1.2), Vector3(-4.3, 0.15, -1.8), Color(0.55, 0.45, 0.3)))
 	# Mostrador y técnica.
 	r.add_child(Shapes.wall(Vector3(2.6, 1.0, 0.7), Vector3(1.5, 0.5, -1.0), Color(0.4, 0.55, 0.4)))
+	_prop(r, "furniture/laptop", Vector3(1.0, 1.0, -1.0), 180.0)
+	for p in [Vector3(-5.0, 0.06, -3.3), Vector3(5.0, 0.06, -3.3)]:
+		_prop(r, "furniture/pottedPlant", p, 0.0, 2.4)
+	_prop(r, "survival/box-large", Vector3(4.6, 0.06, -1.6), 15.0, 1.6)
 	_sign(r, "CENTRO DE RECUPERACIÓN DE FAUNA", Vector3(0, 2.8, 3.8), 0.007)
 	var info: Dictionary = Dialogues.PEOPLE["crea"]
 	var n := Npc.create("crea", info["name"], info["role"], {"shirt": Color(0.35, 0.5, 0.3), "pants": Color(0.3, 0.3, 0.25),
@@ -257,7 +308,10 @@ static func shelter_house(open: Callable, feed: Callable, clean: Callable) -> No
 	_interact(r, "Armario de limpieza: limpiar instalaciones", clean, Vector3(4.2, 1, -1.9), 1.6)
 	# Tablón / mesa de gestión en el centro.
 	r.add_child(Shapes.wall(Vector3(1.6, 0.8, 0.8), Vector3(0, 0.4, -1.4), Color(0.5, 0.38, 0.25)))
-	r.add_child(Shapes.box(Vector3(0.5, 0.04, 0.35), Color(0.15, 0.15, 0.18), Vector3(0.2, 0.83, -1.4)))  # portátil
+	_prop(r, "furniture/laptop", Vector3(0.2, 0.82, -1.4), 180.0)
+	_prop(r, "furniture/pottedPlant", Vector3(-1.6, 0.06, -3.5), 0.0, 2.0)
+	_prop(r, "furniture/trashcan", Vector3(2.6, 0.06, -3.6))
+	_prop(r, "survival/bucket", Vector3(3.4, 0.06, -3.4), 0.0, 1.6)
 	_interact(r, "Mesa del refugio: animales, cuidados, vehículo, dormir", open.bind("refugio"), Vector3(0, 1, -2.2), 1.6)
 	return r
 

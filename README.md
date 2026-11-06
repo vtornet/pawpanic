@@ -5,7 +5,8 @@ persona (con tercera persona opcional). Empiezas con tus ahorros, registras la
 protectora, pides un préstamo, compras un terreno pequeño y levantas una caseta.
 Desde ahí, aviso a aviso, la conviertes en un gran refugio.
 
-Estado: **prototipo jugable v0.2**. Gráficos con formas básicas a propósito.
+Estado: **prototipo jugable v0.3**. Estilo low-poly colorido: modelos CC0 de Kenney para el pueblo, los coches,
+los muebles y las personas, y animales propios hechos por código (12 razas de perro, gatos con varios pelajes...).
 El diseño completo está en [`docs/GDD.md`](docs/GDD.md).
 
 > El prototipo cooperativo anterior sigue en el historial (commit `5f7a6eb`).
@@ -72,7 +73,11 @@ scripts/core/game.gd       Estado y reglas de la partida (autoload "Game"), even
 scripts/world/world.gd     Pueblo, refugio que crece, animales en la calle, interacción
 scripts/world/player.gd    Jugador en primera / tercera persona y vehículos
 scripts/world/interiors.gd   Interiores de los edificios (clínica, peluquería, tienda, ayuntamiento, caseta)
-scripts/world/animal_mesh.gd Modelo provisional de perros y gatos
+scripts/world/animal_mesh.gd Animales hechos por código: razas, pelajes y posturas
+scripts/world/scenery.gd   Escenario: suelo, carreteras, aceras, plaza, río, casas, árboles
+scripts/util/models.gd     Carga de los modelos de Kenney y materiales del escenario
+shaders/                   Suelo, carreteras, baldosas y agua
+assets/kenney/             Modelos CC0 de Kenney (ver CREDITOS.md)
 scripts/world/ambience.gd  Sol según la hora, farolas, vecinos que pasean y coches
 scripts/world/npc.gd       Personajes (modelo, animación, mirar al jugador)
 scripts/core/dialogues.gd  Qué dice cada personaje según la partida
@@ -97,4 +102,5 @@ probar y equilibrar sin abrir el juego:
 godot --headless -- --smoke          # debe terminar con SMOKE PASS
 godot --headless -- --tutorial-test  # juega el tutorial: TUTORIAL PASS
 godot --headless -- --balance        # simula un año con tres estilos de jugador y muestra el equilibrio
+godot -- --shots=capturas            # capturas de pantalla de varias zonas (necesita pantalla)
 ```

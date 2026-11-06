@@ -464,8 +464,12 @@ func _animal_line(a: Dictionary) -> String:
 	var case_names := {"contactando": "contactando con el dueño", "decidir": "¿denunciar?", "denuncia": "denuncia en curso", "sin_respuesta": "dueño sin responder", "recogida": "su dueño viene a recogerlo"}
 	if a.get("owner_case", "") != "":
 		flags.append(case_names[a["owner_case"]])
+	var kind: String = a["species"]
+	var breed := AnimalMesh.breed_name(a)
+	if breed != "":
+		kind += " (" + breed + ")"
 	return "%s · %s %s, %s, %d años · salud %d · nutrición %d · higiene %d · ánimo %d\n   %s" % [
-		a["name"], a["species"], a["size"], a["energy"], a["age"], a["health"], a["nutrition"], a["hygiene"], a["mood"], " · ".join(flags)]
+		a["name"], kind, a["size"], a["energy"], a["age"], a["health"], a["nutrition"], a["hygiene"], a["mood"], " · ".join(flags)]
 
 
 func _tab_animals() -> void:
