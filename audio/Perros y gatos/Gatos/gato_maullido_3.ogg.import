@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://b8e5p2buyvm40"
+path="res://.godot/imported/gato_maullido_3.ogg-cf15e01aaedb538d23e27f44c397b58d.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Gatos/gato_maullido_3.ogg"
+dest_files=["res://.godot/imported/gato_maullido_3.ogg-cf15e01aaedb538d23e27f44c397b58d.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

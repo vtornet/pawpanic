@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dcbaau31uo2x2"
+path="res://.godot/imported/saco_pienso.ogg-a1f9e91f77acb4f0abc2d3d54d428cb3.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Refugio y tareas/saco_pienso.ogg"
+dest_files=["res://.godot/imported/saco_pienso.ogg-a1f9e91f77acb4f0abc2d3d54d428cb3.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://by7eqbpsp428u"
+path="res://.godot/imported/perro_contento_2.ogg-05b0fbf0e561bb7df6e89b92f3fc4dcb.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Perros/perro_contento_2.ogg"
+dest_files=["res://.godot/imported/perro_contento_2.ogg-05b0fbf0e561bb7df6e89b92f3fc4dcb.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

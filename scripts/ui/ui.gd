@@ -26,6 +26,7 @@ var _game_over_text := ""
 var _rebuild_queued := false
 var _dialog_id := ""
 var _dialog: Dictionary = {}
+var _dialog_voice := false   # que el personaje «hable» (voz simlish) al mostrar su frase
 
 
 func _ready() -> void:
@@ -155,6 +156,7 @@ func open_panel(kind: String) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if kind == "tablet":
 		Tutorial.flag("tablet")
+		Sound.ui("tablet_abrir", -4.0)
 	_rebuild()
 	_scroll.scroll_vertical = 0
 
@@ -162,6 +164,8 @@ func open_panel(kind: String) -> void:
 func close_panel() -> void:
 	if _open in ["intro", "fin"]:
 		return
+	if _open == "tablet":
+		Sound.ui("tablet_cerrar", -4.0)
 	_open = ""
 	_modal.visible = false
 	Game.paused = false
@@ -275,6 +279,7 @@ func toast(text: String, kind: String = "info") -> void:
 
 
 func _act(result: String) -> void:
+	Sound.action_result(result)
 	if result != "":
 		toast(result, "info")
 
@@ -727,6 +732,7 @@ func _build_ayuntamiento() -> void:
 func open_dialog(npc_id: String) -> void:
 	_dialog_id = npc_id
 	_dialog = Dialogues.talk(npc_id)
+	_dialog_voice = true
 	open_panel("dialogo")
 
 
@@ -742,6 +748,9 @@ func _build_dialog() -> void:
 			if n.npc_id == _dialog_id:
 				who = "%s · %s" % [n.display_name, n.role]
 	_modal_title.text = who
+	if _dialog_voice:
+		_dialog_voice = false
+		Sound.voice(who.get_slice(" · ", 0), who.get_slice(" · ", 1))
 	var raw: String = _dialog["text"]
 	var narrated := raw.begins_with("«") or raw.begins_with("—") or raw.begins_with("📞") or raw.begins_with("🏠")
 	var l := _p(raw if narrated else "«%s»" % raw, 20)
@@ -756,6 +765,7 @@ func _build_dialog() -> void:
 				if not next.has("who"):
 					next["who"] = who
 				_dialog = next
+				_dialog_voice = true
 				_rebuild())
 		elif target == "":
 			_btn(opt[0], close_panel)
@@ -808,6 +818,22 @@ func _build_pause() -> void:
 		_open = ""
 		open_panel("intro"))
 	_btn("Salir del juego", get_tree().quit)
+	_sep()
+	_h("Volumen")
+	for pair in [["Master", "General"], ["Musica", "Música"], ["Efectos", "Efectos"], ["Ambiente", "Ambiente"], ["Interfaz", "Interfaz"]]:
+		var row := HBoxContainer.new()
+		var l := _p(pair[1], 17, row)
+		l.custom_minimum_size.x = 140
+		l.size_flags_horizontal = Control.SIZE_FILL
+		var sl := HSlider.new()
+		sl.min_value = 0.0
+		sl.max_value = 1.0
+		sl.step = 0.05
+		sl.value = Sound.volumes[pair[0]]
+		sl.custom_minimum_size = Vector2(320, 28)
+		sl.value_changed.connect(func(v: float) -> void: Sound.set_volume(pair[0], v))
+		row.add_child(sl)
+		_modal_body.add_child(row)
 	_sep()
 	_p("Se guarda automáticamente al final de cada día.", 15)
 

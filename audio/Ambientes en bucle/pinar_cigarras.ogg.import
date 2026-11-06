@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://y3e8dkp0t832"
+path="res://.godot/imported/pinar_cigarras.ogg-77f8d5b2a64bb20d96330b4482fcea61.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Ambientes en bucle/pinar_cigarras.ogg"
+dest_files=["res://.godot/imported/pinar_cigarras.ogg-77f8d5b2a64bb20d96330b4482fcea61.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://bmit0y071s75o"
+path="res://.godot/imported/patas_suelo.ogg-6a4fcfb143bb412298e4de7826ece41b.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Acciones de animales/patas_suelo.ogg"
+dest_files=["res://.godot/imported/patas_suelo.ogg-6a4fcfb143bb412298e4de7826ece41b.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

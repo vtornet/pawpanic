@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://bdcfg8kvpgjhk"
+path="res://.godot/imported/sello_documento.ogg-fc4a11070f7cba0304dfa2c1052807e7.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Edificios y gestiones/sello_documento.ogg"
+dest_files=["res://.godot/imported/sello_documento.ogg-fc4a11070f7cba0304dfa2c1052807e7.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

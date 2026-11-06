@@ -10,6 +10,7 @@ signal day_ended(summary: String)
 signal game_over(reason: String)
 signal adopted(request: Dictionary, animal: Dictionary)   # para que el mundo muestre a la familia marchándose
 signal departed(visit: Dictionary, animal: Dictionary)    # un dueño se va con su animal
+signal sound(id: String)              # efecto de sonido de una acción (lo reproduce el autoload Sound)
 
 const SAVE_PATH := "user://partida.json"
 const MONTHS := ["septiembre", "octubre", "noviembre", "diciembre", "enero", "febrero",
@@ -212,6 +213,7 @@ func sign_agreement() -> String:
 		return ""
 	s["vet_agreement"] = true
 	_log("Firmado el convenio con la clínica veterinaria (-%d %% en servicios)." % int(Catalog.VET_AGREEMENT["discount"] * 100))
+	sound.emit("sello_documento")
 	changed.emit()
 	return "«Trato hecho. Con lo que estáis haciendo por los animales del pueblo, os lo merecéis. Desde hoy, un %d %% menos en todo.»" % int(Catalog.VET_AGREEMENT["discount"] * 100)
 
@@ -275,6 +277,7 @@ func register(shelter_name: String) -> bool:
 	_spend(Catalog.REGISTRATION_FEE, "Tasas de registro")
 	s["step"] = "prestamo"
 	_log("Protectora «%s» registrada oficialmente." % shelter_name)
+	sound.emit("sello_documento")
 	changed.emit()
 	return true
 
@@ -288,6 +291,7 @@ func take_loan(id: String) -> bool:
 		"monthly": int(ceil(float(total) / l["months"])), "months_left": l["months"], "missed": 0}
 	_earn(l["amount"], "Préstamo concedido")
 	s["step"] = "terreno"
+	sound.emit("sello_documento")
 	changed.emit()
 	return true
 
@@ -851,6 +855,7 @@ func pick_up(id: int) -> String:
 		_rep(1)
 		if has_equipment("lector") and not a["reviewed"]:
 			_read_chip(a)
+	sound.emit("recoger_animal")
 	advance_minutes(10)
 	world_changed.emit()
 	changed.emit()
@@ -870,6 +875,7 @@ func deposit_all() -> String:
 		if wild > 0:
 			return "La fauna silvestre no puede quedarse en el refugio: es protegida. Llévala al centro de recuperación (CREA)."
 		return "No llevas ningún animal."
+	sound.emit("reja")
 	var msg := "Has dejado %d animal(es) en el refugio." % n
 	if wild > 0:
 		msg += " La fauna silvestre sigue contigo: llévala al CREA."
@@ -982,6 +988,7 @@ func take_out(id: int) -> String:
 	if carried().size() >= capacity():
 		return "No puedes llevar más animales con %s." % vehicle()["name"]
 	a["location"] = "llevando"
+	sound.emit("reja")
 	changed.emit()
 	return "Llevas a %s contigo." % a["name"]
 
@@ -990,6 +997,7 @@ func feed_all() -> String:
 	if s["fed_today"]:
 		return "Ya les has dado de comer hoy."
 	s["fed_today"] = true
+	sound.emit("comer")
 	advance_minutes(20 + 3 * occupancy())
 	changed.emit()
 	return "Les has puesto comida y agua a todos (se descuenta el pienso al final del día)."
@@ -999,6 +1007,7 @@ func clean_all() -> String:
 	if s["cleaned_today"]:
 		return "Ya has limpiado hoy."
 	s["cleaned_today"] = true
+	sound.emit("fregona_cubo")
 	advance_minutes(30 + 4 * occupancy())
 	changed.emit()
 	return "Has limpiado las instalaciones."
@@ -1085,6 +1094,7 @@ func apply_service(id: int, service: String, own: bool) -> String:
 		"bano":
 			a["hygiene"] = 100
 			a["mood"] = mini(100, a["mood"] + 10)
+	sound.emit("servicio_" + service + ":" + a["species"])
 	advance_minutes(15 if own else 25)
 	changed.emit()
 	return msg
@@ -1113,6 +1123,7 @@ func owner_decision(id: int, denounce: bool) -> String:
 		a["owner_day"] = s["day"] + 3
 		s["stats"]["denuncias"] += 1
 		_rep(2)
+		sound.emit("sello_documento")
 		changed.emit()
 		return "Denuncia presentada en el SEPRONA con el informe veterinario. %s se queda en el refugio durante el proceso." % a["name"]
 	a["owner_case"] = "contactando"
@@ -1324,6 +1335,7 @@ func hand_over(visit_id: int) -> String:
 		reward = rng.randi_range(2, 20) * 10
 		_earn(reward, "Recompensa de un dueño")
 	_remove_animal(a)
+	sound.emit("perro_contento")
 	s["stats"]["to_owner"] += 1
 	_rep(2)
 	departed.emit(v, a)
@@ -1349,6 +1361,7 @@ func take_back(visit_id: int) -> String:
 	s["animals"].append(a)
 	s["stats"]["returned"] += 1
 	_rep(-1)
+	sound.emit("jingle_devolucion")
 	changed.emit()
 	world_changed.emit()
 	return "«Lo sentimos mucho, de verdad. Era lo mejor para él.» %s vuelve al refugio, algo desanimado." % a["name"]
@@ -1446,6 +1459,7 @@ func adopt(request_id: int, animal_id: int) -> String:
 	var return_chance: float = [0.6, 0.28, 0.05][score]
 	if a["energy"] == "miedoso": return_chance += 0.1
 	_remove_animal(a)
+	sound.emit("jingle_adopcion")
 	adopted.emit(rq, a)
 	var suspect: String = rq.get("suspect", "")
 	if suspect != "":
@@ -1574,6 +1588,7 @@ func followup_call(fid: int) -> Dictionary:
 	var f := _find_id(s["followups"], fid)
 	if f.is_empty():
 		return {}
+	sound.emit("telefono_llamada")
 	advance_minutes(15)
 	var status := followup_status(f)
 	var first: bool = not f["called"]
@@ -1794,6 +1809,7 @@ func buy_product(id: String, qty: int = 1) -> String:
 		return "No tienes dinero suficiente."
 	_spend(price, p["name"])
 	s["stock"][id] += p["amount"] * qty
+	sound.emit("caja_registradora")
 	if id.begins_with("pienso"):
 		Tutorial.flag("pienso")
 	changed.emit()
@@ -1832,6 +1848,7 @@ func buy_equipment(id: String) -> String:
 		return "No tienes dinero suficiente."
 	_spend(e["price"], e["name"])
 	s["equipment"].append(id)
+	sound.emit("caja_registradora")
 	changed.emit()
 	return "Comprado: %s." % e["name"]
 
@@ -1853,6 +1870,7 @@ func build(id: String) -> String:
 		return why
 	_spend(b["price"], b["name"])
 	s["buildings"][id] = s["buildings"].get(id, 0) + 1
+	sound.emit("obra")
 	advance_minutes(30)
 	changed.emit()
 	world_changed.emit()
@@ -1867,6 +1885,7 @@ func buy_land_upgrade(id: String) -> String:
 		return "No tienes dinero suficiente."
 	_spend(l["price"], l["name"])
 	s["tier"] = l["tier"]
+	sound.emit("jingle_nuevo_terreno")
 	_rep(3)
 	changed.emit()
 	world_changed.emit()
@@ -2063,12 +2082,16 @@ func _random_event() -> String:
 
 func _spend(amount: int, what: String) -> void:
 	s["money"] -= amount
+	if amount >= 150:
+		sound.emit("dinero_sale")
 	s["stats"]["day_spent"] += amount
 	_log("-%d € · %s" % [amount, what])
 
 
 func _earn(amount: int, what: String) -> void:
 	s["money"] += amount
+	if amount > 0:
+		sound.emit("dinero_entra")
 	s["stats"]["day_income"] += amount
 	_log("+%d € · %s" % [amount, what])
 

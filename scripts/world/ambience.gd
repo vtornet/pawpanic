@@ -187,7 +187,9 @@ func _build_cars() -> void:
 		var car := _make_car(colors[k % colors.size()])
 		car.position = path[start]
 		add_child(car)
-		_cars.append({"node": car, "path": path, "i": (start + 1) % path.size(), "speed": randf_range(9.0, 12.0), "cur": 0.0})
+		var engine := Sound.loop_on(car, "coche_marcha", -8.0, 38.0)
+		_cars.append({"node": car, "path": path, "i": (start + 1) % path.size(), "speed": randf_range(9.0, 12.0), "cur": 0.0,
+			"engine": engine, "honk": 0.0})
 
 
 func _make_car(color: Color) -> Node3D:
@@ -230,6 +232,13 @@ func _move_car(c: Dictionary, delta: float) -> void:
 		rel.y = 0
 		if rel.length() < 9.0 and dir.dot(rel.normalized()) > 0.8:
 			want = 0.0
+			# Si te quedas plantado delante, el conductor pita.
+			c["honk"] += delta
+			if c["honk"] > 1.2 and c["cur"] < 1.0:
+				c["honk"] = -randf_range(4.0, 7.0)
+				Sound.play_at("claxon", car.global_position + Vector3(0, 0.8, 0), -2.0, 50.0, 0.0)
+		elif c["honk"] > 0.0:
+			c["honk"] = 0.0
 	for other in _cars:
 		if other == c:
 			continue
@@ -237,6 +246,13 @@ func _move_car(c: Dictionary, delta: float) -> void:
 		if rel2.length() < 8.0 and dir.dot(rel2.normalized()) > 0.9:
 			want = 0.0
 	c["cur"] = move_toward(c["cur"], want, delta * (14.0 if want < c["cur"] else 5.0))
+	if c["honk"] < 0.0:
+		c["honk"] = minf(0.0, c["honk"] + delta)
+	var engine: AudioStreamPlayer3D = c.get("engine")
+	if engine:
+		var t: float = c["cur"] / c["speed"]
+		engine.pitch_scale = lerpf(0.7, 1.15, t)
+		engine.volume_db = lerpf(-14.0, -6.0, t)
 	var step: Vector3 = dir * c["cur"] * delta
 	car.position += step if step.length() < to.length() else to
 	car.rotation.y = lerp_angle(car.rotation.y, atan2(-dir.x, -dir.z), clampf(delta * 4.0, 0.0, 1.0))

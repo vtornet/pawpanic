@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://kcyml7jx41be"
+path="res://.godot/imported/caballo_resoplido_1.ogg-66a3994389b0d9191f5d2e837f350770.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Otros/caballo_resoplido_1.ogg"
+dest_files=["res://.godot/imported/caballo_resoplido_1.ogg-66a3994389b0d9191f5d2e837f350770.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

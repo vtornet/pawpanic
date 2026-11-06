@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dml4myty2bj3w"
+path="res://.godot/imported/viento_fuerte.ogg-a7d9bdef5938b205d23b214dc1434a76.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Ambientes en bucle/viento_fuerte.ogg"
+dest_files=["res://.godot/imported/viento_fuerte.ogg-a7d9bdef5938b205d23b214dc1434a76.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

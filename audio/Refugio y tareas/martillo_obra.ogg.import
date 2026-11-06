@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://d056njk5gayoy"
+path="res://.godot/imported/martillo_obra.ogg-bb1d8612f2615e752f5156cf97c3d0a6.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Refugio y tareas/martillo_obra.ogg"
+dest_files=["res://.godot/imported/martillo_obra.ogg-bb1d8612f2615e752f5156cf97c3d0a6.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

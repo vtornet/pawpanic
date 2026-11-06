@@ -25,7 +25,7 @@ El diseño completo está en [`docs/GDD.md`](docs/GDD.md).
 | Interactuar | E |
 | Tablet de gestión | Tab |
 | Primera / tercera persona | V |
-| Menú (guardar, cargar) | Esc |
+| Menú (guardar, cargar, volumen) | Esc |
 
 ## Cómo se juega
 
@@ -54,6 +54,8 @@ Con el refugio más grande puedes contratar un **coordinador de adopciones**: ha
 
 **Más especies**: con la **conejera** (barata, desde el principio) empezarán a llegar conejos, y con el **establo** de la finca, cabras, burros y caballos. Comen **heno**; para burros y caballos necesitas el **remolque**, y como no caben en la clínica, el veterinario de grandes animales viene al refugio (con un pequeño suplemento).
 
+**Sonido**: música que cambia con la hora y la situación (tema del menú, día, atardecer, avisos urgentes, interiores), ambiente por zonas (pueblo, campo, río, pinar, grillos al atardecer, perrera, tormenta, incendio), pasos según el suelo, motores, animales que ladran o maúllan cerca de ti y personajes que «hablan» con voces sin palabras. El volumen de cada grupo se ajusta en el menú de pausa (Esc).
+
 **La primera partida tiene un tutorial** que te guía paso a paso con una flecha dorada (se puede saltar desde el menú de pausa).
 
 **Si el refugio se llena**: deriva avisos a otras protectoras (tablet → Avisos, dos al día) o manda animales a **casas de acogida** de tus voluntarios desde la mesa de la caseta. Con reputación 50 puedes proponer a la Dra. Carmen un **convenio** de precios para la protectora.
@@ -75,6 +77,10 @@ scripts/world/ambience.gd  Sol según la hora, farolas, vecinos que pasean y coc
 scripts/world/npc.gd       Personajes (modelo, animación, mirar al jugador)
 scripts/core/dialogues.gd  Qué dice cada personaje según la partida
 scripts/core/tutorial.gd   Tutorial de la primera partida
+scripts/core/sound.gd      Sonido (autoload "Sound"): efectos, bucles, música, ambiente y volúmenes
+scripts/world/soundscape.gd  Qué música y ambiente suenan según dónde estás; animales que ladran
+audio/                     Efectos, ambientes y música en OGG (lista en docs/SONIDOS.md)
+tools/convert_audio.py     Convierte los WAV nuevos de audio/ a OGG recortado y con volumen igualado
 scripts/world/interactable.gd
 scripts/ui/ui.gd           Arranque, HUD, tablet y paneles de cada lugar
 scripts/util/shapes.gd     Geometría provisional

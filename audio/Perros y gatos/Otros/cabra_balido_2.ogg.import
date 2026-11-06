@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://bwpp2dh1b8665"
+path="res://.godot/imported/cabra_balido_2.ogg-dab8493bcffdc3cdf8d7aa668cab3a36.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Otros/cabra_balido_2.ogg"
+dest_files=["res://.godot/imported/cabra_balido_2.ogg-dab8493bcffdc3cdf8d7aa668cab3a36.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

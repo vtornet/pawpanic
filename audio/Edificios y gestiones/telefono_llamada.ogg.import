@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://sl55ko575gc6"
+path="res://.godot/imported/telefono_llamada.ogg-7275946fa96b8b1902a194ca5e60d6ec.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Edificios y gestiones/telefono_llamada.ogg"
+dest_files=["res://.godot/imported/telefono_llamada.ogg-7275946fa96b8b1902a194ca5e60d6ec.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dnjupq5031kfp"
+path="res://.godot/imported/perro_grande_ladrido_1.ogg-6b76a1df3093dd62487d5fa1334b4ca4.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Perros/perro_grande_ladrido_1.ogg"
+dest_files=["res://.godot/imported/perro_grande_ladrido_1.ogg-6b76a1df3093dd62487d5fa1334b4ca4.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

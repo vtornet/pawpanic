@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://otprh0s2ui6k"
+path="res://.godot/imported/fregona_cubo.ogg-bc581bb9aced64661b009a6721592897.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Refugio y tareas/fregona_cubo.ogg"
+dest_files=["res://.godot/imported/fregona_cubo.ogg-bc581bb9aced64661b009a6721592897.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

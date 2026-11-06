@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dk814xstratyd"
+path="res://.godot/imported/perro_mediano_ladrido_3.ogg-641fac5dfbe0bc0027e1fa285d6e0f8f.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Perros/perro_mediano_ladrido_3.ogg"
+dest_files=["res://.godot/imported/perro_mediano_ladrido_3.ogg-641fac5dfbe0bc0027e1fa285d6e0f8f.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

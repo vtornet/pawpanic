@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://qw4an30n740r"
+path="res://.godot/imported/reja_abrir.ogg-fe06d1b6cc8a1bb42ee677c805374bcb.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Refugio y tareas/reja_abrir.ogg"
+dest_files=["res://.godot/imported/reja_abrir.ogg-fe06d1b6cc8a1bb42ee677c805374bcb.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

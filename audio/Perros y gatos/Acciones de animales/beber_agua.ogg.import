@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c05lkjw6nu1ee"
+path="res://.godot/imported/beber_agua.ogg-f15959b18ffb63db6ffa43b63c8cc708.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Acciones de animales/beber_agua.ogg"
+dest_files=["res://.godot/imported/beber_agua.ogg-f15959b18ffb63db6ffa43b63c8cc708.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

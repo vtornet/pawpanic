@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://3unc88ettgk6"
+path="res://.godot/imported/cascos_tierra.ogg-e17f84179a8f1b3b3fe92c8c922697fa.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Otros/cascos_tierra.ogg"
+dest_files=["res://.godot/imported/cascos_tierra.ogg-e17f84179a8f1b3b3fe92c8c922697fa.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

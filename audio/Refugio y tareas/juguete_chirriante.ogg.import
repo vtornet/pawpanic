@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://n24gshigymhn"
+path="res://.godot/imported/juguete_chirriante.ogg-e2d9c2e45eb08254b7eed982a95db0cb.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Refugio y tareas/juguete_chirriante.ogg"
+dest_files=["res://.godot/imported/juguete_chirriante.ogg-e2d9c2e45eb08254b7eed982a95db0cb.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

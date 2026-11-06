@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dwi11vvhjkh3y"
+path="res://.godot/imported/perro_jadeo.ogg-748ef9d816731af13300edac6b8e8407.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Perros/perro_jadeo.ogg"
+dest_files=["res://.godot/imported/perro_jadeo.ogg-748ef9d816731af13300edac6b8e8407.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

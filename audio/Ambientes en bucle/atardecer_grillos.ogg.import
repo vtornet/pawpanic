@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://ba63hb5rt7kn4"
+path="res://.godot/imported/atardecer_grillos.ogg-b581cc20e56f522d57bc5470ba1d732c.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Ambientes en bucle/atardecer_grillos.ogg"
+dest_files=["res://.godot/imported/atardecer_grillos.ogg-b581cc20e56f522d57bc5470ba1d732c.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

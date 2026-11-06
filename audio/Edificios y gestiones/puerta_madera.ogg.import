@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://b3uga2x46dgcg"
+path="res://.godot/imported/puerta_madera.ogg-6ce9427653f691beb437fea0f69e799b.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Edificios y gestiones/puerta_madera.ogg"
+dest_files=["res://.godot/imported/puerta_madera.ogg-6ce9427653f691beb437fea0f69e799b.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

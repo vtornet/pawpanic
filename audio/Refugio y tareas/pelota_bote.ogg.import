@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://brqn1k2e6l6yh"
+path="res://.godot/imported/pelota_bote.ogg-3ae6b3ad0456a16f0572b6f663934780.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Refugio y tareas/pelota_bote.ogg"
+dest_files=["res://.godot/imported/pelota_bote.ogg-3ae6b3ad0456a16f0572b6f663934780.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

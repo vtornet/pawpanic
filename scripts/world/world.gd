@@ -66,6 +66,11 @@ func _ready() -> void:
 	_goal_marker = _make_goal_marker()
 	add_child(_goal_marker)
 
+	var soundscape := Soundscape.new()
+	soundscape.name = "Sonido"
+	soundscape.world = self
+	add_child(soundscape)
+
 	Game.world_changed.connect(_sync)
 	Game.changed.connect(_sync_shelter)
 	Game.changed.connect(_sync_shelter_animals)
@@ -637,6 +642,17 @@ func _sync() -> void:
 		else:
 			label.text = "⚠ AVISO: %s" % a["origin"]
 			label.modulate = Color(1, 0.35, 0.3)
+
+
+## Animales visibles para el sonido: [nodo, id, está en la calle].
+func animal_nodes() -> Array:
+	var out := []
+	for c in _shelter_animals.get_children():
+		if c.has_meta("id") and not c.is_queued_for_deletion():
+			out.append([c, c.get_meta("id"), false])
+	for id in _street_nodes:
+		out.append([_street_nodes[id], id, true])
+	return out
 
 
 func _make_street_animal(a: Dictionary) -> Node3D:

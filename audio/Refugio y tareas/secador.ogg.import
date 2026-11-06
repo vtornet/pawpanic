@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://cerf6vupkl6ob"
+path="res://.godot/imported/secador.ogg-73538725efd3f1a000120b376611349f.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Refugio y tareas/secador.ogg"
+dest_files=["res://.godot/imported/secador.ogg-73538725efd3f1a000120b376611349f.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

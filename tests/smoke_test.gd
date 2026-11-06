@@ -12,6 +12,20 @@ func run(world: World, ui: GameUI) -> void:
 	await _frames(2)
 	_check(world.ambience != null and get_tree().get_nodes_in_group("npc").size() >= 10, "el mundo debería haberse construido entero (ambiente y personajes)")
 
+	# --- Sonido: todos los archivos de la lista están y se cargan ---
+	for n in ["clic", "tablet_abrir", "aviso_urgente", "dinero_entra", "jingle_adopcion", "pueblo_dia", "atardecer_grillos",
+			"menu_tema_principal", "dia_tranquilo_1", "atardecer", "urgencia", "interior_clinica", "coche_marcha", "reja_abrir"]:
+		_check(Sound.stream(n) != null, "debería cargarse el sonido %s" % n)
+	_check(Sound.count("perro_grande_ladrido") == 3 and Sound.count("pasos_hierba") == 4 and Sound.count("voz_mujer") == 8,
+		"las variantes de un sonido deberían agruparse por nombre")
+	_check(Sound.animal_call({"species": "perro", "size": "grande", "health": 90}) == "perro_grande_ladrido", "un perro grande sano ladra grave")
+	_check(Sound.animal_call({"species": "perro", "size": "grande", "injured": true}) == "perro_gemido", "un perro herido gime")
+	for k in ["Rocío", "Dra. Carmen", "Antonio", "Don Manuel"]:
+		_check(Sound.voice_kind(k) == {"Rocío": "mujer", "Dra. Carmen": "mujer", "Antonio": "hombre", "Don Manuel": "mayor"}[k], "voz de %s" % k)
+	_check(PlayerController.surface_at(Vector3(0, 0, -50), false) == "asfalto", "la carretera debería sonar a asfalto")
+	_check(PlayerController.surface_at(Vector3(20, 0, 30), true) == "baldosa", "bajo techo debería sonar a baldosa")
+	_check(Sound.music_track() == "menu_tema_principal", "en el registro debería sonar el tema principal (suena: %s)" % Sound.music_track())
+
 	# --- Arranque ---
 	_check(not Game.register("ab"), "un nombre de 2 letras no debería valer")
 	_check(Game.register("Huellas de Prueba"), "el registro debería funcionar")

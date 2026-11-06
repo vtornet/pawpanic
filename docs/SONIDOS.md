@@ -1,7 +1,14 @@
 # Paw Panic — Lista de sonidos
 
-Lista de todo el audio que necesita el juego. Los **nombres de archivo y las carpetas** son los que usaré
-para integrarlos: si los guardas así en `audio/`, entran en el juego sin tocar nada más.
+Lista de todo el audio que necesita el juego.
+
+**Estado:** los 153 archivos están en `audio/` e integrados en el juego (efectos generados con ElevenLabs,
+música con Suno). El juego busca cada sonido **por su nombre de archivo, en cualquier subcarpeta**: para
+cambiar uno, basta con sustituir el archivo manteniendo el nombre. Las variantes (`_1`, `_2`...) se eligen al azar.
+
+Para añadir o sustituir sonidos: deja el WAV en su carpeta de `audio/` y ejecuta
+`python3 tools/convert_audio.py`. Lo recorta (quita el silencio de los efectos cortos), iguala el volumen
+y lo convierte a OGG.
 
 **Prioridad:** 🔴 imprescindible para la demo · 🟡 importante · ⚪ cuando haya tiempo
 **Variaciones:** `×3` significa tres versiones distintas del mismo sonido (`_1`, `_2`, `_3`), para que no suene repetitivo.

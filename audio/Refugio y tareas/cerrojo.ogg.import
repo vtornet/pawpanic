@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dfw1h4d01aayn"
+path="res://.godot/imported/cerrojo.ogg-07b5effb44df0309f1bb3d95868b6830.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Refugio y tareas/cerrojo.ogg"
+dest_files=["res://.godot/imported/cerrojo.ogg-07b5effb44df0309f1bb3d95868b6830.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

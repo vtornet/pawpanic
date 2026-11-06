@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dmsf3yyb2b15i"
+path="res://.godot/imported/gato_ronroneo.ogg-30dc34bb08e3dd05dee6bdf481744ff3.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Gatos/gato_ronroneo.ogg"
+dest_files=["res://.godot/imported/gato_ronroneo.ogg-30dc34bb08e3dd05dee6bdf481744ff3.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

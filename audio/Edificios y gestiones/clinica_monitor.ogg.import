@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://cpfpecdnfe67a"
+path="res://.godot/imported/clinica_monitor.ogg-07036c20b1b08f5986615ba65e38236f.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Edificios y gestiones/clinica_monitor.ogg"
+dest_files=["res://.godot/imported/clinica_monitor.ogg-07036c20b1b08f5986615ba65e38236f.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

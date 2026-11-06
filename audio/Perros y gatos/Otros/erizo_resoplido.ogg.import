@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dwxaaupcc0ho8"
+path="res://.godot/imported/erizo_resoplido.ogg-2490eb9d4ad3b05b676c12f8a4ee344a.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Otros/erizo_resoplido.ogg"
+dest_files=["res://.godot/imported/erizo_resoplido.ogg-2490eb9d4ad3b05b676c12f8a4ee344a.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

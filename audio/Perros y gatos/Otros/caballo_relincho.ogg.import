@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://b1x1beajns7t6"
+path="res://.godot/imported/caballo_relincho.ogg-41ac7f0ce556d2c75975fdb94d031bd0.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Otros/caballo_relincho.ogg"
+dest_files=["res://.godot/imported/caballo_relincho.ogg-41ac7f0ce556d2c75975fdb94d031bd0.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dq3g5emr6rpoj"
+path="res://.godot/imported/conejo_golpe_pata.ogg-83a7b4a56c20e1d1017f974a6b6805b4.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Otros/conejo_golpe_pata.ogg"
+dest_files=["res://.godot/imported/conejo_golpe_pata.ogg-83a7b4a56c20e1d1017f974a6b6805b4.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

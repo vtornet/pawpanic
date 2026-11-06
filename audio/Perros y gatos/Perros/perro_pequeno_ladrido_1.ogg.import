@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://isqjq84s25yk"
+path="res://.godot/imported/perro_pequeno_ladrido_1.ogg-95b52a830d7a7480c3b8f2217148f17b.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Perros/perro_pequeno_ladrido_1.ogg"
+dest_files=["res://.godot/imported/perro_pequeno_ladrido_1.ogg-95b52a830d7a7480c3b8f2217148f17b.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

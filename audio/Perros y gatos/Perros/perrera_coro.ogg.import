@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://chssupg0fd5ev"
+path="res://.godot/imported/perrera_coro.ogg-902033126aa93a97438634059ab965ed.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Perros/perrera_coro.ogg"
+dest_files=["res://.godot/imported/perrera_coro.ogg-902033126aa93a97438634059ab965ed.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

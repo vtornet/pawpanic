@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://e256ilstrqk2"
+path="res://.godot/imported/burro_rebuzno_2.ogg-66a3f41c2cfe9f48a2f3d17b0bce1d5f.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/Perros y gatos/Otros/burro_rebuzno_2.ogg"
+dest_files=["res://.godot/imported/burro_rebuzno_2.ogg-66a3f41c2cfe9f48a2f3d17b0bce1d5f.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
