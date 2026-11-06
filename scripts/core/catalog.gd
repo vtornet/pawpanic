@@ -13,11 +13,11 @@ const LOANS := [
 
 ## Parcelas. tier 1 = inicial; las demás son ampliaciones.
 const LANDS := [
-	{"id": "solar_rio", "tier": 1, "name": "Solar junto al río", "price": 6000, "size": 20,
+	{"id": "solar_rio", "tier": 1, "name": "Solar junto al río", "price": 6000, "size": 22,
 		"desc": "Barato, pero en zona inundable.", "flood_risk": true, "pos": Vector3(-10, 0, 75)},
 	{"id": "parcela_camino", "tier": 1, "name": "Parcela del camino", "price": 8500, "size": 22,
 		"desc": "Equilibrada, a las afueras.", "flood_risk": false, "pos": Vector3(0, 0, 70)},
-	{"id": "parcela_pueblo", "tier": 1, "name": "Parcela cerca del pueblo", "price": 11000, "size": 20,
+	{"id": "parcela_pueblo", "tier": 1, "name": "Parcela cerca del pueblo", "price": 11000, "size": 22,
 		"desc": "Cara, pero cerca de todo (más visitas de adoptantes).", "flood_risk": false, "pos": Vector3(0, 0, 50), "adopt_bonus": 0.15},
 	{"id": "mediana", "tier": 2, "name": "Ampliar a parcela mediana", "price": 15000, "size": 34, "desc": "Permite más zonas."},
 	{"id": "grande", "tier": 3, "name": "Ampliar a parcela grande", "price": 32000, "size": 48, "desc": "Refugio completo."},

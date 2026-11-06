@@ -239,3 +239,128 @@ static func shelter_house(open: Callable, feed: Callable, clean: Callable) -> No
 static func kennel_pos(i: int) -> Vector3:
 	var x := -SHELTER_W / 2 + 0.35 + i * 2.6 + 1.3
 	return Vector3(x, 0.06, SHELTER_D / 2 - 1.5)
+
+
+# ---------------------------------------------------------------------
+# Ampliaciones del refugio. Todas miden 5 × 4,6 m y tienen la puerta en -Z.
+# ---------------------------------------------------------------------
+const EXP_W := 5.0
+const EXP_D := 4.6
+
+const EXP_NAMES := {"caniles": "Caniles", "limpieza": "Zona de limpieza", "cuarentena": "Cuarentena", "gatera": "Gatera",
+	"patio": "Patio de paseo", "consulta": "Consulta veterinaria", "almacen": "Almacén", "quirofano": "Quirófano", "placas": "Placas solares"}
+
+
+static func expansion(id: String, open: Callable) -> Node3D:
+	var r: Node3D
+	var hd := EXP_D / 2
+	match id:
+		"consulta":
+			r = room(EXP_W, EXP_D, 2.8, Color(0.92, 0.97, 1.0), Color(0.85, 0.88, 0.9), Color(0.35, 0.5, 0.6))
+			r.add_child(Shapes.wall(Vector3(0.8, 0.9, 1.4), Vector3(1.2, 0.45, 0.9), Color(0.75, 0.78, 0.8)))
+			r.add_child(Shapes.box(Vector3(0.85, 0.05, 1.45), Color(0.9, 0.92, 0.95), Vector3(1.2, 0.92, 0.9)))
+			r.add_child(Shapes.wall(Vector3(1.6, 2.0, 0.45), Vector3(-1.5, 1.0, 2.0), Color(0.95, 0.95, 0.95)))
+			for i in 3:
+				r.add_child(Shapes.box(Vector3(1.4, 0.04, 0.3), Color(0.7, 0.85, 0.95), Vector3(-1.5, 0.6 + i * 0.5, 1.75)))
+			_interact(r, "Consulta propia: servicios veterinarios", open.bind("consulta"), Vector3(0.4, 1, 0.2), 1.8)
+		"quirofano":
+			r = room(EXP_W, EXP_D, 2.8, Color(0.85, 0.95, 0.9), Color(0.8, 0.88, 0.85), Color(0.35, 0.5, 0.45))
+			r.add_child(Shapes.wall(Vector3(0.9, 0.95, 1.8), Vector3(0, 0.48, 0.8), Color(0.7, 0.75, 0.78)))
+			r.add_child(Shapes.cylinder(0.5, 0.1, Color(1, 1, 0.9), Vector3(0, 2.5, 0.8)))
+			r.add_child(Shapes.wall(Vector3(0.6, 1.4, 0.5), Vector3(1.8, 0.7, 1.8), Color(0.3, 0.32, 0.35)))  # monitor
+			r.add_child(Shapes.box(Vector3(0.5, 0.35, 0.05), Color(0.2, 0.8, 0.5), Vector3(1.8, 1.2, 1.54)))
+			_interact(r, "Quirófano: esterilizaciones y cirugía", open.bind("consulta"), Vector3(-0.8, 1, 0.2), 1.8)
+		"limpieza":
+			r = room(EXP_W, EXP_D, 2.8, Color(0.75, 0.9, 0.97), Color(0.88, 0.9, 0.92), Color(0.3, 0.45, 0.6))
+			r.add_child(Shapes.wall(Vector3(1.8, 0.85, 1.0), Vector3(1.2, 0.43, 1.4), Color(0.95, 0.95, 0.97)))
+			r.add_child(Shapes.box(Vector3(1.6, 0.05, 0.8), Color(0.45, 0.7, 0.95), Vector3(1.2, 0.87, 1.4)))
+			r.add_child(Shapes.box(Vector3(0.08, 0.7, 0.08), Color(0.7, 0.7, 0.72), Vector3(1.2, 1.25, 1.95)))
+			r.add_child(Shapes.wall(Vector3(1.2, 0.8, 0.6), Vector3(-1.5, 0.4, 1.8), Color(0.6, 0.6, 0.65)))
+			_interact(r, "Bañera del refugio: baños y desparasitación", open.bind("limpieza"), Vector3(0.6, 1, 0.3), 1.8)
+		"cuarentena":
+			r = room(EXP_W, EXP_D, 2.8, Color(0.98, 0.93, 0.6), Color(0.8, 0.8, 0.75), Color(0.55, 0.45, 0.2))
+			for x in [-1.6, 0.0, 1.6]:
+				r.add_child(Shapes.box(Vector3(1.4, 0.05, 1.3), Color(0.6, 0.6, 0.6), Vector3(x, 0.05, 1.45)))
+				for b in 5:
+					r.add_child(Shapes.box(Vector3(0.03, 1.0, 0.03), Color(0.35, 0.35, 0.38), Vector3(x - 0.6 + b * 0.3, 0.5, 0.8)))
+				r.add_child(Shapes.box(Vector3(1.4, 0.04, 0.04), Color(0.35, 0.35, 0.38), Vector3(x, 1.0, 0.8)))
+			_sign(r, "CUARENTENA", Vector3(0, 2.2, 2.2), 0.007)
+			_interact(r, "Cuarentena: tratar a los animales enfermos", open.bind("consulta"), Vector3(0, 1, -0.4), 1.8)
+		"gatera":
+			r = room(EXP_W, EXP_D, 2.8, Color(0.98, 0.82, 0.68), Color(0.75, 0.6, 0.45), Color(0.6, 0.3, 0.2))
+			r.add_child(Shapes.box(Vector3(4.6, 0.08, 0.6), Color(0.55, 0.4, 0.25), Vector3(0, 0.9, 2.0)))  # estante
+			for x in [-1.9, 1.9]:
+				r.add_child(Shapes.box(Vector3(0.15, 1.6, 0.15), Color(0.85, 0.75, 0.6), Vector3(x, 0.8, 0.2)))  # rascador
+				r.add_child(Shapes.box(Vector3(0.6, 0.08, 0.6), Color(0.55, 0.4, 0.5), Vector3(x, 1.6, 0.2)))
+			r.add_child(Shapes.box(Vector3(0.6, 0.15, 0.4), Color(0.9, 0.9, 0.9), Vector3(1.9, 0.08, -1.6)))  # arenero
+			_interact(r, "Gatera: ver a los gatos", open.bind("refugio"), Vector3(0, 1, -0.6), 1.8)
+		"almacen":
+			r = room(EXP_W, EXP_D, 2.8, Color(0.7, 0.6, 0.5), Color(0.55, 0.5, 0.45), Color(0.45, 0.3, 0.2))
+			for k in 6:
+				for lvl in 3:
+					r.add_child(Shapes.box(Vector3(0.6, 0.35, 0.4), Color(0.85, 0.3, 0.2) if (k + lvl) % 2 == 0 else Color(0.2, 0.5, 0.8),
+						Vector3(-1.8 + k * 0.7, 0.2 + lvl * 0.38, 1.9)))
+			_interact(r, "Almacén: comprar pienso y productos (con descuento)", open.bind("tienda"), Vector3(0, 1, 0.5), 1.8)
+		"caniles":
+			r = Node3D.new()
+			var grey := Color(0.62, 0.62, 0.64)
+			r.add_child(Shapes.box(Vector3(EXP_W, 0.06, EXP_D), Color(0.7, 0.7, 0.7), Vector3(0, 0.03, 0)))
+			r.add_child(Shapes.wall(Vector3(EXP_W, 1.6, 0.2), Vector3(0, 0.8, hd), grey))
+			for i in 5:
+				r.add_child(Shapes.wall(Vector3(0.12, 1.3, EXP_D), Vector3(-EXP_W / 2 + i * EXP_W / 4, 0.65, 0), grey))
+			for i in 4:
+				var cx := -EXP_W / 2 + EXP_W / 8 + i * EXP_W / 4
+				for b in 4:
+					r.add_child(Shapes.box(Vector3(0.04, 1.1, 0.04), Color(0.3, 0.3, 0.32), Vector3(cx - 0.45 + b * 0.3, 0.55, -hd)))
+				r.add_child(Shapes.box(Vector3(1.2, 0.05, 0.05), Color(0.3, 0.3, 0.32), Vector3(cx, 1.1, -hd)))
+			# Medio techado para la sombra.
+			r.add_child(Shapes.box(Vector3(EXP_W + 0.2, 0.1, EXP_D / 2), Color(0.45, 0.45, 0.48), Vector3(0, 1.75, hd / 2)))
+		"patio":
+			r = Node3D.new()
+			r.add_child(Shapes.box(Vector3(EXP_W, 0.06, EXP_D), Color(0.35, 0.68, 0.3), Vector3(0, 0.04, 0)))
+			var wood := Color(0.55, 0.4, 0.25)
+			r.add_child(Shapes.wall(Vector3(EXP_W, 0.9, 0.1), Vector3(0, 0.45, hd), wood))
+			r.add_child(Shapes.wall(Vector3(0.1, 0.9, EXP_D), Vector3(-EXP_W / 2, 0.45, 0), wood))
+			r.add_child(Shapes.wall(Vector3(0.1, 0.9, EXP_D), Vector3(EXP_W / 2, 0.45, 0), wood))
+			r.add_child(Shapes.wall(Vector3(1.3, 0.9, 0.1), Vector3(-1.85, 0.45, -hd), wood))
+			r.add_child(Shapes.wall(Vector3(1.3, 0.9, 0.1), Vector3(1.85, 0.45, -hd), wood))
+			r.add_child(Shapes.cylinder(0.15, 0.3, Color(0.95, 0.3, 0.2), Vector3(-1.2, 0.2, 0.5)))  # pelota
+			var tire := Shapes.cylinder(0.45, 0.2, Color(0.15, 0.15, 0.15), Vector3(1.4, 0.15, 1.3))
+			r.add_child(tire)
+			r.add_child(Shapes.wall(Vector3(1.4, 0.45, 0.4), Vector3(-1.6, 0.25, 1.9), wood))  # banco
+		"placas":
+			r = Node3D.new()
+			for k in 2:
+				var panel := Shapes.box(Vector3(2.2, 0.08, 1.4), Color(0.18, 0.22, 0.42), Vector3(-1.2 + k * 2.4, 1.1, 0))
+				panel.rotation_degrees.x = -25
+				r.add_child(panel)
+				r.add_child(Shapes.box(Vector3(0.1, 1.0, 0.1), Color(0.6, 0.6, 0.62), Vector3(-1.2 + k * 2.4, 0.5, 0)))
+		_:
+			r = Node3D.new()
+	var title := Shapes.label(EXP_NAMES.get(id, id), Vector3(0, 3.5 if id in ["caniles", "patio", "placas"] else 3.4, -hd), 44)
+	title.pixel_size = 0.012
+	r.add_child(title)
+	return r
+
+
+## Dónde se colocan los animales dentro de cada ampliación (coordenadas locales).
+static func expansion_spots(id: String) -> Array:
+	match id:
+		"caniles":
+			var out := []
+			for i in 4:
+				out.append(Vector3(-EXP_W / 2 + EXP_W / 8 + i * EXP_W / 4, 0.06, 0.6))
+			return out
+		"gatera":
+			return [Vector3(-1.5, 0.06, 0.9), Vector3(0, 0.06, 1.0), Vector3(1.4, 0.06, -0.5),
+				Vector3(-1.5, 0.95, 2.0), Vector3(0, 0.95, 2.0), Vector3(1.5, 0.95, 2.0)]
+		"cuarentena":
+			return [Vector3(-1.6, 0.06, 1.5), Vector3(0, 0.06, 1.5), Vector3(1.6, 0.06, 1.5)]
+		"patio":
+			return [Vector3(-1.0, 0.06, -0.6), Vector3(0.9, 0.06, 0.2), Vector3(-0.3, 0.06, 1.2), Vector3(1.5, 0.06, -1.2)]
+	return []
+
+
+## Dónde trabaja cada profesional, si existe su ampliación.
+const STAFF_PLACE := {"veterinario": ["consulta", Vector3(1.2, 0.06, 1.95)], "peluquero": ["limpieza", Vector3(-0.6, 0.06, 1.7)],
+	"paseador": ["patio", Vector3(0.2, 0.06, -0.8)], "cuidador": ["caniles", Vector3(0, 0.06, -1.6)]}

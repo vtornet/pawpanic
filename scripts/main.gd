@@ -20,7 +20,12 @@ func _ready() -> void:
 
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--smoke":
-			var test: Node = load("res://tests/smoke_test.gd").new()
+			var script: GDScript = load("res://tests/smoke_test.gd")
+			if script == null or not script.can_instantiate():
+				printerr("SMOKE FAIL: la prueba no compila")
+				get_tree().quit(1)
+				return
+			var test: Node = script.new()
 			add_child(test)
 			test.run.call_deferred(world, ui)
 		elif arg.begins_with("--quit-after="):

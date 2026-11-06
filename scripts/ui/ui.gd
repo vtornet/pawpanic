@@ -129,7 +129,7 @@ func open_panel(kind: String) -> void:
 	_modal.offset_right = -260 if dialog else -140
 	_modal.offset_top = 380 if dialog else 60
 	_modal.offset_bottom = -50 if dialog else -60
-	_close_btn.visible = kind in ["dialogo", "tablet", "refugio", "clinica", "peluqueria", "tienda", "ayuntamiento", "pausa"]
+	_close_btn.visible = kind in ["consulta", "limpieza", "dialogo", "tablet", "refugio", "clinica", "peluqueria", "tienda", "ayuntamiento", "pausa"]
 	Game.paused = true
 	world.player.ui_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -191,6 +191,10 @@ func _rebuild() -> void:
 		"intro": _build_intro()
 		"tablet": _build_tablet()
 		"refugio": _build_refugio()
+		"consulta": _build_own_services("Consulta propia", ["revision", "vacunas", "chip", "desparasitar", "tratamiento", "esterilizar"],
+			"Necesitas contratar a un veterinario (Tablet → Personal) para usar la consulta.")
+		"limpieza": _build_own_services("Zona de limpieza", ["bano", "desparasitar"],
+			"Necesitas un peluquero o algún voluntario para usar la zona de limpieza.")
 		"clinica": _build_clinica()
 		"peluqueria": _build_peluqueria()
 		"tienda": _build_tienda_lugar()
@@ -560,6 +564,31 @@ func _build_refugio() -> void:
 				_btn("%s (%d €)" % [Catalog.SERVICES[sv]["name"], Game.service_price(sv, true)],
 					func() -> void: _act(Game.apply_service(a["id"], sv, true)), false, arow)
 	_p("Para ir al veterinario o a la peluquería, lleva a los animales contigo («Llevar conmigo»).", 15)
+
+
+## Servicios hechos en las instalaciones propias, para los animales del refugio.
+func _build_own_services(title: String, services: Array, missing: String) -> void:
+	_modal_title.text = title
+	var usable := services.filter(func(sv: String) -> bool: return Game.can_do_own(sv))
+	if usable.is_empty():
+		_p(missing)
+		return
+	var prices: PackedStringArray = []
+	for sv in usable:
+		prices.append("%s %d € (fuera: %d €)" % [Catalog.SERVICES[sv]["name"], Catalog.SERVICES[sv]["own"], Catalog.SERVICES[sv]["ext"]])
+	_p("Precios con tus instalaciones: " + " · ".join(prices), 15)
+	_sep()
+	var list := Game.sheltered()
+	if list.is_empty():
+		_p("No hay animales en el refugio.")
+	# Primero los que necesitan algo.
+	list.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return Game.is_adoptable(b) and not Game.is_adoptable(a))
+	for a in list:
+		_p(_animal_line(a), 16)
+		var row := _row()
+		for sv in usable:
+			_btn("%s (%d €)" % [Catalog.SERVICES[sv]["name"], Catalog.SERVICES[sv]["own"]],
+				func() -> void: _act(Game.apply_service(a["id"], sv, true)), not Game.can_afford(Catalog.SERVICES[sv]["own"]), row)
 
 
 func _services_for_carried(services: Array, place: String) -> void:

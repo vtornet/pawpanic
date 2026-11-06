@@ -251,6 +251,55 @@ func run(world: World, ui: GameUI) -> void:
 	Game.advance_minutes(200)
 	_check(Game.animal(ret2["id"]).get("location", "") == "refugio" and ret2["mood"] < mood_before, "si nadie les atiende, deberían dejarlo atado a la puerta")
 
+	# --- Ampliaciones con interior: animales y personal en su sitio ---
+	Game.s["money"] = 200000
+	Game.buy_land_upgrade("grande")
+	Game.buy_land_upgrade("finca")  # el quirófano necesita la finca
+	for bid in ["consulta", "limpieza", "gatera", "patio", "almacen", "quirofano"]:
+		Game.build(bid)
+	if Game.staff_count("veterinario") == 0:
+		Game.hire("veterinario")
+	if Game.staff_count("peluquero") == 0:
+		Game.hire("peluquero")
+	var sick_dog := Game._make_animal({"species": "perro"})
+	sick_dog["location"] = "refugio"
+	sick_dog["sick"] = true
+	Game.s["animals"].append(sick_dog)
+	var cat := Game._make_animal({"species": "gato"})
+	cat["location"] = "refugio"
+	cat["sick"] = false
+	cat["injured"] = false
+	Game.s["animals"].append(cat)
+	Game.changed.emit()
+	await _frames(2)
+	var spot_of := func(id: String) -> Vector3:
+		for bs in world._building_spots:
+			if bs["id"] == id:
+				return Game.s["land_pos"] + bs["pos"]
+		return Vector3.INF
+	var node_of := func(aid: int) -> Node3D:
+		for n in world._shelter_animals.get_children():
+			if n.get_meta("id", -1) == aid:
+				return n
+		return null
+	var q: Vector3 = spot_of.call("cuarentena")
+	var sd: Node3D = node_of.call(sick_dog["id"])
+	_check(sd != null and q != Vector3.INF and sd.global_position.distance_to(q) < 3.5, "el animal enfermo debería estar en la cuarentena")
+	var g: Vector3 = spot_of.call("gatera")
+	var cn: Node3D = node_of.call(cat["id"])
+	_check(cn != null and g != Vector3.INF and cn.global_position.distance_to(g) < 3.5, "el gato debería estar en la gatera")
+	var vet_node: Array = get_tree().get_nodes_in_group("npc").filter(func(n: Node) -> bool: return n.npc_id.begins_with("staff_veterinario"))
+	var cons: Vector3 = spot_of.call("consulta")
+	_check(not vet_node.is_empty() and vet_node[0].global_position.distance_to(cons) < 3.5, "el veterinario debería trabajar en la consulta")
+	_check(Game.can_do_own("vacunas") and Game.can_do_own("bano") and Game.can_do_own("esterilizar"), "los servicios propios deberían estar disponibles")
+	for kind in ["consulta", "limpieza"]:
+		ui.open_panel(kind)
+		await _frames(1)
+		ui.close_panel()
+	var money_v := Game.money()
+	Game.apply_service(sick_dog["id"], "tratamiento", true)
+	_check(Game.money() == money_v - Catalog.SERVICES["tratamiento"]["own"], "el tratamiento propio debería costar el precio de material")
+
 	# --- Simulación larga: 200 días con decisiones sencillas ---
 	Game.s["money"] = 50000
 	for day in 200:

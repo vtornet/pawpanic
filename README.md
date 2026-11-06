@@ -42,6 +42,8 @@ El diseño completo está en [`docs/GDD.md`](docs/GDD.md).
 
 Todos los edificios tienen interior y personas con las que hablar (E): Rocío en la recepción y la Dra. Carmen en la consulta de la clínica, Inma en la peluquería, Manolo en la tienda, y Antonio (banco), Pilar (registro) y el agente Ruiz (SEPRONA) en el ayuntamiento. Te cuentan cosas según tu situación y te dan acceso a sus servicios. En el refugio, tus voluntarios y empleados te avisan si falta pienso, si hay algún animal enfermo o si no cabéis.
 
+Cada **ampliación del refugio** tiene interior y se usa desde dentro: en la **consulta** y el **quirófano** haces los servicios veterinarios a precio de material (si tienes veterinario), en la **zona de limpieza** los baños, los enfermos van a la **cuarentena**, los gatos a la **gatera**, los perros enérgicos salen al **patio** de día, y tus empleados trabajan en su sala.
+
 El pueblo tiene vida: **vecinos** que pasean (habla con ellos: a veces han visto un animal suelto o te dan un donativo) y **coches** que circulan, así que cuidado al cruzar. El sol avanza con la hora y al atardecer se encienden las farolas.
 
 Si un animal **con chip** se escapa, verás su señal de forma intermitente (continua con el rastreador). **Sin chip**, se pierde.

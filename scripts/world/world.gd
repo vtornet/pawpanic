@@ -254,7 +254,9 @@ func _sync_shelter() -> void:
 				break
 			var p: Vector3 = slots_pos[i]
 			i += 1
-			_building_visual(b["id"], p)
+			var exp := Interiors.expansion(b["id"], open_panel.emit)
+			exp.position = p
+			_shelter.add_child(exp)
 			_building_spots.append({"id": b["id"], "pos": p})
 
 
@@ -277,37 +279,28 @@ func building_slots(half: float) -> Array:
 	return out
 
 
-func _building_visual(id: String, p: Vector3) -> void:
-	var colors := {"caniles": Color(0.7, 0.7, 0.72), "limpieza": Color(0.6, 0.85, 0.95), "cuarentena": Color(0.95, 0.9, 0.5),
-		"gatera": Color(0.95, 0.75, 0.6), "patio": Color(0.4, 0.75, 0.35), "consulta": Color(0.95, 0.97, 1.0),
-		"almacen": Color(0.6, 0.5, 0.4), "quirofano": Color(0.85, 0.95, 0.9), "placas": Color(0.2, 0.25, 0.45)}
-	var names := {"caniles": "Caniles", "limpieza": "Limpieza", "cuarentena": "Cuarentena", "gatera": "Gatera",
-		"patio": "Patio de paseo", "consulta": "Consulta veterinaria", "almacen": "Almacén", "quirofano": "Quirófano", "placas": "Placas solares"}
-	var c: Color = colors.get(id, Color.WHITE)
-	match id:
-		"patio":
-			_shelter.add_child(Shapes.box(Vector3(6, 0.08, 6), c, p + Vector3(0, 0.05, 0)))
-		"placas":
-			var panel := Shapes.box(Vector3(5, 0.1, 3), c, p + Vector3(0, 1.2, 0))
-			panel.rotation_degrees.x = -25
-			_shelter.add_child(panel)
-		"caniles":
-			_shelter.add_child(Shapes.wall(Vector3(5, 1.6, 3), p + Vector3(0, 0.8, 0), c))
-			_shelter.add_child(Shapes.box(Vector3(5.2, 0.15, 3.2), Color(0.4, 0.4, 0.42), p + Vector3(0, 1.7, 0)))
-		_:
-			_shelter.add_child(Shapes.wall(Vector3(5, 2.6, 4), p + Vector3(0, 1.3, 0), c))
-	var bl := Shapes.label(names.get(id, id), p + Vector3(0, 3.4, 0), 44)
-	bl.pixel_size = 0.012
-	_shelter.add_child(bl)
-
-
 # =====================================================================
 # Animales dentro del refugio: en los caniles de la caseta y junto a las construcciones
 # =====================================================================
 
+func _patio_time() -> bool:
+	var h := int(Game.s.get("minute", 0)) / 60
+	return h >= 10 and h < 18
+
+
+func _spots_of(id: String) -> Array:
+	var out := []
+	for b in _building_spots:
+		if b["id"] == id:
+			for sp in Interiors.expansion_spots(id):
+				out.append(b["pos"] + sp)
+	return out
+
+
 func _sync_shelter_animals() -> void:
 	var list := Game.sheltered()
-	var sig := "%s|%s" % [_shelter_sig, ",".join(PackedStringArray(list.map(func(a: Dictionary) -> String: return "%d:%d" % [a["id"], int(a["hygiene"] < 30)])))]
+	var sig := "%s|%s|%s" % [_shelter_sig, _patio_time(), ",".join(PackedStringArray(list.map(func(a: Dictionary) -> String:
+		return "%d:%d%d" % [a["id"], int(a["hygiene"] < 30), int(a["sick"] or a["injured"])])))]
 	if sig == _animals_sig:
 		return
 	_animals_sig = sig
@@ -315,27 +308,35 @@ func _sync_shelter_animals() -> void:
 		c.queue_free()
 	if Game.s["tier"] == 0:
 		return
-	# Plazas visibles: 4 caniles en la caseta y luego las de cada construcción con plazas.
-	var spots: Array = []
+	# Cada animal va a su sitio: enfermos a cuarentena, gatos a la gatera, perros enérgicos
+	# al patio durante el día, y el resto a los caniles de la caseta y los exteriores.
+	var quarantine := _spots_of("cuarentena")
+	var cattery := _spots_of("gatera")
+	var patio := _spots_of("patio") if _patio_time() else []
+	var kennels: Array = []
 	for i in 4:
-		spots.append(HOUSE_POS + Interiors.kennel_pos(i))
-	for b in _building_spots:
-		var per := 6 if b["id"] == "gatera" else (4 if b["id"] == "caniles" else 0)
-		for k in per:
-			spots.append(b["pos"] + Vector3(-2.0 + (k % 4) * 1.3, 0.06, 2.6 + (k / 4) * 1.0))
+		kennels.append(HOUSE_POS + Interiors.kennel_pos(i))
+	kennels.append_array(_spots_of("caniles"))
 	var half := Game.land_size() / 2.0
-	for i in list.size():
-		var a: Dictionary = list[i]
-		var node := AnimalMesh.build(a)
-		node.set_meta("id", a["id"])
-		var p: Vector3
-		if i < spots.size():
-			p = spots[i]
-		else:
+	for a in list:
+		var p := Vector3.INF
+		if (a["sick"] or a["injured"]) and not quarantine.is_empty():
+			p = quarantine.pop_front()
+		elif a["species"] == "gato" and not cattery.is_empty():
+			p = cattery.pop_front()
+		elif a["energy"] == "enérgico" and a["species"] == "perro" and not patio.is_empty():
+			p = patio.pop_front()
+		elif not kennels.is_empty():
+			p = kennels.pop_front()
+		elif a["species"] == "gato" and not cattery.is_empty():
+			p = cattery.pop_front()
+		if p == Vector3.INF:
 			# Sobreocupación: animales sueltos por el patio.
 			var r := RandomNumberGenerator.new()
 			r.seed = a["id"]
-			p = Vector3(r.randf_range(-half + 2, half - 2), 0.06, r.randf_range(-half + 2, -2))
+			p = Vector3(r.randf_range(-4.5, 4.5), 0.06, r.randf_range(-half + 2, -2))
+		var node := AnimalMesh.build(a)
+		node.set_meta("id", a["id"])
 		node.position = Game.s["land_pos"] + p
 		node.rotation.y = PI  # mirando hacia la entrada
 		var info := Interactable.create("%s · %s %s · salud %d · %s" % [a["name"], a["species"], a["size"], a["health"],
@@ -363,7 +364,7 @@ const STAFF_ROLE_NAMES := {"voluntario": "voluntario/a", "cuidador": "cuidador/a
 
 
 func _sync_staff() -> void:
-	var sig := "%s|%s|%d" % [str(Game.s["staff"]), Game.s["land"], Game.s["tier"]]
+	var sig := "%s|%s|%d|%s" % [str(Game.s["staff"]), Game.s["land"], Game.s["tier"], str(Game.s["buildings"])]
 	if sig == _staff_sig:
 		return
 	_staff_sig = sig
@@ -372,8 +373,9 @@ func _sync_staff() -> void:
 	if Game.s["tier"] == 0:
 		return
 	var half := Game.land_size() / 2.0
-	var spots := [Vector3(-3.5, 0.06, -4.5), Vector3(3.5, 0.06, -4.5), Vector3(-7.5, 0.06, -7.0), Vector3(7.5, 0.06, -7.0),
-		Vector3(-2.0, 0.06, -8.0), Vector3(2.0, 0.06, -8.0), Vector3(-half + 2.5, 0.06, -2.0), Vector3(half - 2.5, 0.06, -2.0)]
+	var spots := [Vector3(-3.5, 0.06, -3.0), Vector3(3.5, 0.06, -3.0), Vector3(-4.5, 0.06, -6.0), Vector3(4.5, 0.06, -6.0),
+		Vector3(-1.5, 0.06, -4.0), Vector3(1.5, 0.06, -4.0), Vector3(-4.0, 0.06, -9.5), Vector3(4.0, 0.06, -9.5)]
+	var placed := {}  # rol -> ya colocado en su sala
 	var i := 0
 	var hair := [Color(0.15, 0.1, 0.08), Color(0.55, 0.4, 0.25), Color(0.85, 0.7, 0.4), Color(0.3, 0.2, 0.15), Color(0.6, 0.6, 0.6)]
 	for role in STAFF_LOOKS:
@@ -387,6 +389,14 @@ func _sync_staff() -> void:
 			var n := Npc.create("staff_%s_%d" % [role, k], nm, STAFF_ROLE_NAMES[role], look)
 			n.position = Game.s["land_pos"] + spots[i]
 			n.rotation.y = 0.0  # mirando hacia la entrada
+			# Los profesionales trabajan en su sala, si existe.
+			if Interiors.STAFF_PLACE.has(role) and not placed.has(role):
+				var place: Array = Interiors.STAFF_PLACE[role]
+				for b in _building_spots:
+					if b["id"] == place[0]:
+						n.position = Game.s["land_pos"] + b["pos"] + place[1]
+						placed[role] = true
+						break
 			n.talked.connect(talk.emit)
 			_staff_root.add_child(n)
 			i += 1
