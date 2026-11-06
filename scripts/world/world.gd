@@ -7,11 +7,13 @@ signal open_panel(kind: String)
 signal prompt_changed(text: String)
 signal message(text: String)
 
+## Edificios del pueblo. "depth" es la profundidad de la sala (de la puerta al fondo)
+## y "height" la altura de las paredes: sirven para poner el cartel de la fachada.
 const PLACES := {
-	"clinica": {"name": "Clínica veterinaria", "pos": Vector3(30, 0, -20), "color": Color(0.85, 0.95, 1.0), "size": Vector3(12, 5, 9)},
-	"peluqueria": {"name": "Peluquería canina", "pos": Vector3(-30, 0, -20), "color": Color(1.0, 0.85, 0.9), "size": Vector3(9, 4, 8)},
-	"tienda": {"name": "Tienda de piensos", "pos": Vector3(30, 0, 22), "color": Color(0.95, 0.9, 0.7), "size": Vector3(11, 4.5, 9)},
-	"ayuntamiento": {"name": "Ayuntamiento · Banco · SEPRONA", "pos": Vector3(-30, 0, 22), "color": Color(0.9, 0.85, 0.75), "size": Vector3(14, 7, 10)},
+	"clinica": {"name": "Clínica veterinaria", "pos": Vector3(30, 0, -20), "depth": 10.0, "height": 4.0},
+	"peluqueria": {"name": "Peluquería canina", "pos": Vector3(-30, 0, -20), "depth": 8.0, "height": 3.6},
+	"tienda": {"name": "Tienda de piensos", "pos": Vector3(30, 0, 22), "depth": 10.0, "height": 4.0},
+	"ayuntamiento": {"name": "Ayuntamiento · Banco · SEPRONA", "pos": Vector3(-30, 0, 22), "depth": 11.0, "height": 5.0},
 }
 
 var player: PlayerController
@@ -19,6 +21,8 @@ var _street: Node3D
 var _shelter: Node3D
 var _street_nodes := {}   # id -> Node3D
 var _shelter_sig := ""
+var _shelter_animals: Node3D
+var _animals_sig := ""
 var _current: Interactable
 
 
@@ -28,6 +32,9 @@ func _ready() -> void:
 	_shelter = Node3D.new()
 	_shelter.name = "Refugio"
 	add_child(_shelter)
+	_shelter_animals = Node3D.new()
+	_shelter_animals.name = "AnimalesRefugio"
+	add_child(_shelter_animals)
 	_street = Node3D.new()
 	_street.name = "Calle"
 	add_child(_street)
@@ -39,6 +46,7 @@ func _ready() -> void:
 
 	Game.world_changed.connect(_sync)
 	Game.changed.connect(_sync_shelter)
+	Game.changed.connect(_sync_shelter_animals)
 	_sync()
 
 
@@ -139,18 +147,25 @@ func _near_place(p: Vector3, r: float) -> bool:
 func _build_town() -> void:
 	for key: String in PLACES:
 		var pl: Dictionary = PLACES[key]
-		var size: Vector3 = pl["size"]
 		var pos: Vector3 = pl["pos"]
-		add_child(Shapes.wall(size, pos + Vector3(0, size.y / 2, 0), pl["color"]))
-		# Fachada hacia la carretera principal (x = 0).
-		var front := Vector3(-signf(pos.x) * (size.x / 2 + 0.05), 0, 0)
-		add_child(Shapes.box(Vector3(0.1, 2.4, 1.6), Color(0.35, 0.25, 0.18), pos + front + Vector3(0, 1.2, 0)))
-		var sign_label := Shapes.label(pl["name"].to_upper(), pos + front * 1.05 + Vector3(0, size.y + 1.2, 0), 64)
+		var building: Node3D
+		match key:
+			"clinica": building = Interiors.clinic(open_panel.emit)
+			"peluqueria": building = Interiors.grooming(open_panel.emit)
+			"tienda": building = Interiors.shop(open_panel.emit)
+			"ayuntamiento": building = Interiors.town_hall(open_panel.emit)
+		building.name = key
+		# La puerta (pared -Z local) mira hacia la carretera central (x = 0).
+		building.rotation.y = PI / 2 if pos.x > 0 else -PI / 2
+		building.position = pos
+		add_child(building)
+		# Cartel grande en la fachada.
+		var front_dist: float = pl["depth"] / 2.0 + 0.3
+		var sign_label := Shapes.label(pl["name"].to_upper(), Vector3(0, pl["height"] + 1.0, -front_dist), 64)
 		sign_label.pixel_size = 0.02
-		add_child(sign_label)
-		var door := Interactable.create("Entrar en: " + pl["name"], open_panel.emit.bind(key), 3.5)
-		door.position = pos + front * 1.15 + Vector3(0, 1, 0)
-		add_child(door)
+		building.add_child(sign_label)
+		# Felpudo delante de la puerta.
+		building.add_child(Shapes.box(Vector3(2.4, 0.04, 1.2), Color(0.45, 0.3, 0.2), Vector3(0, 0.02, -front_dist - 0.6)))
 
 
 # =====================================================================
@@ -188,19 +203,22 @@ func _sync_shelter() -> void:
 		_shelter.add_child(sign_l)
 		return
 
-	# Caseta principal.
-	_shelter.add_child(Shapes.wall(Vector3(8, 3, 5), Vector3(0, 1.5, 2), Color(0.85, 0.8, 0.7)))
-	_shelter.add_child(Shapes.box(Vector3(8.6, 0.3, 5.6), Color(0.6, 0.25, 0.2), Vector3(0, 3.15, 2)))
-	var door := Interactable.create("Refugio: dejar / sacar animales, cuidar, dormir", open_panel.emit.bind("refugio"), 3.0)
-	door.position = Vector3(0, 1, -0.7)
-	_shelter.add_child(door)
-	_shelter.add_child(Shapes.box(Vector3(1.4, 2.2, 0.1), Color(0.35, 0.25, 0.18), Vector3(0, 1.1, -0.52)))
+	# Caseta principal: se puede entrar.
+	var house := Interiors.shelter_house(open_panel.emit,
+		func() -> void: message.emit(Game.feed_all()),
+		func() -> void: message.emit(Game.clean_all()))
+	house.name = "Caseta"
+	house.position = HOUSE_POS
+	_shelter.add_child(house)
+	# Al entrar con animales, se dejan en la caseta.
+	var drop := Interactable.create("Dejar en el refugio a los animales que llevas", func() -> void: message.emit(Game.deposit_all()), 2.2)
+	drop.position = HOUSE_POS + Vector3(0, 1, -Interiors.SHELTER_D / 2 - 0.8)
+	drop.set_meta("only_if_carrying", true)
+	_shelter.add_child(drop)
 
 	# Construcciones adicionales en fila a lo largo del terreno.
-	var slots_pos := [Vector3(-half + 4, 0, half - 4), Vector3(half - 4, 0, half - 4), Vector3(-half + 4, 0, 2),
-		Vector3(half - 4, 0, 2), Vector3(-half + 4, 0, -half + 5), Vector3(half - 4, 0, -half + 5),
-		Vector3(-half / 2, 0, half - 4), Vector3(half / 2, 0, half - 4), Vector3(-half / 2, 0, -half + 5),
-		Vector3(half / 2, 0, -half + 5)]
+	var slots_pos := building_slots(half)
+	_building_spots.clear()
 	var i := 0
 	for b in Catalog.BUILDINGS:
 		var n: int = Game.s["buildings"].get(b["id"], 0)
@@ -212,6 +230,26 @@ func _sync_shelter() -> void:
 			var p: Vector3 = slots_pos[i]
 			i += 1
 			_building_visual(b["id"], p)
+			_building_spots.append({"id": b["id"], "pos": p})
+
+
+const HOUSE_POS := Vector3(0, 0, 3)
+var _building_spots: Array = []
+
+
+## Huecos para construcciones alrededor de la caseta, según el tamaño del terreno.
+func building_slots(half: float) -> Array:
+	var out := []
+	var inner := half - 4.0
+	var side := half - 3.0  # pegado a la valla, sin pisar la caseta
+	for z in [inner, -inner + 1.0, 0.0]:
+		for x in [-side, side]:
+			out.append(Vector3(x, 0, z))
+	if half > 12:
+		for x in [-inner / 2.0, inner / 2.0]:
+			out.append(Vector3(x, 0, inner))
+			out.append(Vector3(x, 0, -inner + 1.0))
+	return out
 
 
 func _building_visual(id: String, p: Vector3) -> void:
@@ -236,6 +274,51 @@ func _building_visual(id: String, p: Vector3) -> void:
 	var bl := Shapes.label(names.get(id, id), p + Vector3(0, 3.4, 0), 44)
 	bl.pixel_size = 0.012
 	_shelter.add_child(bl)
+
+
+# =====================================================================
+# Animales dentro del refugio: en los caniles de la caseta y junto a las construcciones
+# =====================================================================
+
+func _sync_shelter_animals() -> void:
+	var list := Game.sheltered()
+	var sig := "%s|%s" % [_shelter_sig, ",".join(PackedStringArray(list.map(func(a: Dictionary) -> String: return "%d:%d" % [a["id"], int(a["hygiene"] < 30)])))]
+	if sig == _animals_sig:
+		return
+	_animals_sig = sig
+	for c in _shelter_animals.get_children():
+		c.queue_free()
+	if Game.s["tier"] == 0:
+		return
+	# Plazas visibles: 4 caniles en la caseta y luego las de cada construcción con plazas.
+	var spots: Array = []
+	for i in 4:
+		spots.append(HOUSE_POS + Interiors.kennel_pos(i))
+	for b in _building_spots:
+		var per := 6 if b["id"] == "gatera" else (4 if b["id"] == "caniles" else 0)
+		for k in per:
+			spots.append(b["pos"] + Vector3(-2.0 + (k % 4) * 1.3, 0.06, 2.6 + (k / 4) * 1.0))
+	var half := Game.land_size() / 2.0
+	for i in list.size():
+		var a: Dictionary = list[i]
+		var node := AnimalMesh.build(a)
+		node.set_meta("id", a["id"])
+		var p: Vector3
+		if i < spots.size():
+			p = spots[i]
+		else:
+			# Sobreocupación: animales sueltos por el patio.
+			var r := RandomNumberGenerator.new()
+			r.seed = a["id"]
+			p = Vector3(r.randf_range(-half + 2, half - 2), 0.06, r.randf_range(-half + 2, -2))
+		node.position = Game.s["land_pos"] + p
+		node.rotation.y = PI  # mirando hacia la entrada
+		var info := Interactable.create("%s · %s %s · salud %d · %s" % [a["name"], a["species"], a["size"], a["health"],
+			"listo para adopción" if Game.is_adoptable(a) else "falta: " + ", ".join(Game.missing_for_adoption(a))],
+			open_panel.emit.bind("refugio"), 1.3)
+		info.position.y = 0.5
+		node.add_child(info)
+		_shelter_animals.add_child(node)
 
 
 # =====================================================================
@@ -274,26 +357,7 @@ func _sync() -> void:
 
 
 func _make_street_animal(a: Dictionary) -> Node3D:
-	var root := Node3D.new()
-	var s := 1.3 if a["size"] == "grande" else (1.0 if a["size"] == "mediano" else 0.75)
-	if a["species"] == "gato":
-		s = 0.6
-	var coat := Color.from_hsv(randf_range(0.05, 0.12), randf_range(0.2, 0.6), randf_range(0.35, 0.9))
-	var vis := Node3D.new()
-	vis.scale = Vector3.ONE * s
-	root.add_child(vis)
-	vis.add_child(Shapes.box(Vector3(0.5, 0.42, 0.85), coat, Vector3(0, 0.45, 0)))
-	vis.add_child(Shapes.box(Vector3(0.38, 0.36, 0.36), coat, Vector3(0, 0.75, -0.5)))
-	vis.add_child(Shapes.box(Vector3(0.1, 0.1, 0.1), Color(0.1, 0.1, 0.1), Vector3(0, 0.72, -0.7)))
-	var ear_h := 0.22 if a["species"] == "gato" else 0.16
-	for x in [-0.12, 0.12]:
-		vis.add_child(Shapes.box(Vector3(0.09, ear_h, 0.07), coat.darkened(0.3), Vector3(x, 0.98, -0.48)))
-		for z in [-0.28, 0.28]:
-			vis.add_child(Shapes.box(Vector3(0.11, 0.25, 0.11), coat.darkened(0.15), Vector3(x * 1.4, 0.12, z)))
-	vis.add_child(Shapes.box(Vector3(0.07, 0.07, 0.35), coat.darkened(0.2), Vector3(0, 0.62, 0.55)))
-	if a["injured"]:
-		vis.add_child(Shapes.box(Vector3(0.14, 0.14, 0.14), Color(0.8, 0.1, 0.1), Vector3(0.2, 0.25, 0.28)))
-	root.set_meta("vis", vis)
+	var root := AnimalMesh.build(a)
 
 	var info := Interactable.create("", _on_pick.bind(a["id"]), 2.6)
 	info.prompt = "Recoger a %s (%s %s%s)" % [a["name"], a["species"], a["size"], ", herido" if a["injured"] else ""]
@@ -312,6 +376,7 @@ func _make_street_animal(a: Dictionary) -> Node3D:
 	var label := Shapes.label("", Vector3(0, 6, 0), 40)
 	label.fixed_size = true
 	label.pixel_size = 0.0012
+	label.no_depth_test = true  # el aviso se ve a través de los edificios
 	beacon.add_child(label)
 	beacon.set_meta("label", label)
 	root.set_meta("beacon", beacon)
@@ -330,9 +395,9 @@ func _process(delta: float) -> void:
 	# Animalitos de la calle: pequeño movimiento para que parezcan vivos.
 	var t := Time.get_ticks_msec() * 0.001
 	for id in _street_nodes:
-		var vis: Node3D = _street_nodes[id].get_meta("vis")
-		vis.rotation.y = sin(t * 0.7 + id) * 0.8
-		vis.position.y = absf(sin(t * 3.0 + id)) * 0.05
+		AnimalMesh.animate(_street_nodes[id], t, id)
+	for n in _shelter_animals.get_children():
+		AnimalMesh.animate(n, t, n.get_meta("id", 0))
 	_update_interaction()
 
 
@@ -341,14 +406,26 @@ func _update_interaction() -> void:
 	var best_d := INF
 	if not player.ui_open:
 		var p := player.global_position
+		var look := player.look_dir()
+		var look2 := Vector2(look.x, look.z).normalized()
 		for n in get_tree().get_nodes_in_group("interactable"):
 			var it := n as Interactable
 			if it == null or not it.is_visible_in_tree():
 				continue
-			var d := Vector2(it.global_position.x - p.x, it.global_position.z - p.z).length()
-			if d < it.radius and d < best_d:
+			if it.has_meta("only_if_carrying") and Game.carried().is_empty():
+				continue
+			var to := Vector2(it.global_position.x - p.x, it.global_position.z - p.z)
+			var d := to.length()
+			if d > it.radius:
+				continue
+			# Se prefiere lo que tienes delante.
+			var facing := look2.dot(to.normalized()) if d > 0.01 else 1.0
+			if d > 1.0 and facing < 0.1:
+				continue
+			var score := d - facing * 1.2
+			if score < best_d:
 				best = it
-				best_d = d
+				best_d = score
 	if best != _current:
 		_current = best
 		prompt_changed.emit("[E] " + best.prompt if best else "")

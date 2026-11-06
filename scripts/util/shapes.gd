@@ -55,7 +55,7 @@ static func label(text: String, pos: Vector3, font_size: int = 48) -> Label3D:
 	l.font_size = font_size
 	l.outline_size = 12
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	l.no_depth_test = true
+	l.no_depth_test = false
 	l.pixel_size = 0.006
 	return l
 
