@@ -22,6 +22,8 @@ var _scroll: ScrollContainer
 var _summary_text := ""
 var _game_over_text := ""
 var _rebuild_queued := false
+var _dialog_id := ""
+var _dialog: Dictionary = {}
 
 
 func _ready() -> void:
@@ -105,6 +107,7 @@ func _ready() -> void:
 	Game.day_ended.connect(_on_day_ended)
 	Game.game_over.connect(_on_game_over)
 	world.open_panel.connect(open_panel)
+	world.talk.connect(open_dialog)
 	world.prompt_changed.connect(func(t: String) -> void: _prompt.text = t)
 	world.message.connect(_act)
 
@@ -120,7 +123,13 @@ func _ready() -> void:
 func open_panel(kind: String) -> void:
 	_open = kind
 	_modal.visible = true
-	_close_btn.visible = kind in ["tablet", "refugio", "clinica", "peluqueria", "tienda", "ayuntamiento", "pausa"]
+	# El diálogo ocupa solo la parte de abajo, para seguir viendo al personaje.
+	var dialog := kind == "dialogo"
+	_modal.offset_left = 260 if dialog else 140
+	_modal.offset_right = -260 if dialog else -140
+	_modal.offset_top = 560 if dialog else 60
+	_modal.offset_bottom = -50 if dialog else -60
+	_close_btn.visible = kind in ["dialogo", "tablet", "refugio", "clinica", "peluqueria", "tienda", "ayuntamiento", "pausa"]
 	Game.paused = true
 	world.player.ui_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -187,6 +196,7 @@ func _rebuild() -> void:
 		"tienda": _build_tienda_lugar()
 		"ayuntamiento": _build_ayuntamiento()
 		"resumen": _build_summary()
+		"dialogo": _build_dialog()
 		"pausa": _build_pause()
 		"fin": _build_game_over()
 
@@ -609,6 +619,39 @@ func _build_ayuntamiento() -> void:
 	for a in decide:
 		_p("%s: indicios de maltrato, propietario identificado por el chip." % a["name"])
 		_btn("Presentar denuncia", func() -> void: _act(Game.owner_decision(a["id"], true)))
+
+
+# =====================================================================
+# Conversaciones
+# =====================================================================
+
+func open_dialog(npc_id: String) -> void:
+	_dialog_id = npc_id
+	_dialog = Dialogues.talk(npc_id)
+	open_panel("dialogo")
+
+
+func _build_dialog() -> void:
+	var who := ""
+	if Dialogues.PEOPLE.has(_dialog_id):
+		var p: Dictionary = Dialogues.PEOPLE[_dialog_id]
+		who = "%s · %s" % [p["name"], p["role"]]
+	else:
+		for n in get_tree().get_nodes_in_group("npc"):
+			if n.npc_id == _dialog_id:
+				who = "%s · %s" % [n.display_name, n.role]
+	_modal_title.text = who
+	var l := _p("«%s»" % _dialog["text"], 22)
+	l.add_theme_color_override("font_color", Color(1, 0.96, 0.85))
+	_sep()
+	for opt in _dialog["options"]:
+		var panel: String = opt[1]
+		if panel == "":
+			_btn(opt[0], close_panel)
+		else:
+			_btn(opt[0], func() -> void:
+				_open = ""
+				open_panel(panel))
 
 
 # =====================================================================

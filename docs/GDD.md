@@ -253,12 +253,13 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 - [x] Subvención municipal con requisitos e inspección
 - [x] Eventos: ola de calor, incendio forestal, inundación, brote de parvovirus, camada abandonada, temporada de caza
 - [x] Cierre de día y de mes, guardado y carga
+- [x] Personajes con conversaciones según la situación: recepcionista y veterinaria, peluquera, dependiente, banco, registro, SEPRONA, y voluntarios y empleados en el refugio (avisan de pienso, enfermos, sobreocupación...)
 - [x] Se puede entrar en los edificios: clínica (recepción, sala de espera, consulta, hospitalización), peluquería (bañera, mesa de corte), tienda (estanterías, caja), ayuntamiento (ventanillas de banco, registro y SEPRONA) y caseta del refugio (caniles con los animales, comedero, armario de limpieza, mesa de gestión)
 
 **Pendiente**
 - [ ] Más especies (gatos implementados de forma básica; conejos, granja)
 - [ ] Interiores de las construcciones del refugio (consulta propia, quirófano, gatera, zona de limpieza): ahora son bloques
-- [ ] Personajes en los edificios (veterinaria, recepcionista, funcionarios) y conversaciones
+- [ ] Más variedad de conversaciones, adoptantes que visitan el refugio y familias que vienen a recoger a su animal
 - [ ] Modelos, animaciones y sonido
 - [ ] Combustible, moral del personal, turnos
 - [ ] Entrevistas y solicitudes sospechosas

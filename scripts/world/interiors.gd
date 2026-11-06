@@ -57,6 +57,15 @@ static func _interact(parent: Node3D, prompt: String, action: Callable, pos: Vec
 
 ## Cartel fijo en la pared. Por defecto mira hacia la puerta (-Z);
 ## con toward_door = false mira hacia el fondo (para carteles en la pared de la entrada).
+## Coloca a un personaje (mirando hacia la puerta) y conecta su conversación.
+static func _person(parent: Node3D, id: String, look: Dictionary, pos: Vector3, talk: Callable) -> void:
+	var info: Dictionary = Dialogues.PEOPLE[id]
+	var n := Npc.create(id, info["name"], info["role"], look)
+	n.position = pos
+	n.talked.connect(talk)
+	parent.add_child(n)
+
+
 static func _sign(parent: Node3D, text: String, pos: Vector3, px: float = 0.008, toward_door: bool = true) -> void:
 	var l := Shapes.label(text, pos, 40)
 	l.pixel_size = px
@@ -69,7 +78,7 @@ static func _sign(parent: Node3D, text: String, pos: Vector3, px: float = 0.008,
 # ---------------------------------------------------------------------
 # Clínica veterinaria
 # ---------------------------------------------------------------------
-static func clinic(open: Callable) -> Node3D:
+static func clinic(open: Callable, talk: Callable) -> Node3D:
 	var w := 13.0
 	var d := 10.0
 	var r := room(w, d, 4.0, Color(0.88, 0.95, 1.0), Color(0.85, 0.88, 0.9), Color(0.35, 0.5, 0.6))
@@ -80,7 +89,7 @@ static func clinic(open: Callable) -> Node3D:
 	r.add_child(Shapes.box(Vector3(3.3, 0.06, 0.8), green, Vector3(3.2, 1.13, -2.2)))
 	r.add_child(Shapes.box(Vector3(0.5, 0.35, 0.05), Color(0.1, 0.1, 0.12), Vector3(3.6, 1.35, -2.0)))  # monitor
 	_sign(r, "RECEPCIÓN", Vector3(3.2, 2.3, -1.9))
-	_interact(r, "Recepción: servicios veterinarios", open.bind("clinica"), Vector3(3.2, 1, -3.0))
+	_person(r, "recepcion", {"shirt": Color(0.3, 0.6, 0.55), "pants": Color(0.25, 0.25, 0.3), "hair": Color(0.15, 0.1, 0.08), "long_hair": true}, Vector3(3.2, 0.06, -1.3), talk)
 	# Sala de espera a la izquierda.
 	for x in [-5.0, -4.2, -3.4]:
 		r.add_child(Shapes.box(Vector3(0.6, 0.45, 0.6), green, Vector3(x, 0.23, -3.8)))
@@ -91,7 +100,7 @@ static func clinic(open: Callable) -> Node3D:
 	r.add_child(Shapes.wall(Vector3(2.0, 0.9, 0.9), Vector3(-3.5, 0.45, 2.6), steel))
 	r.add_child(Shapes.box(Vector3(2.05, 0.05, 0.95), Color(0.9, 0.92, 0.95), Vector3(-3.5, 0.92, 2.6)))
 	_sign(r, "CONSULTA", Vector3(-3.5, 2.6, 4.7))
-	_interact(r, "Mesa de exploración: servicios veterinarios", open.bind("clinica"), Vector3(-3.5, 1, 1.6))
+	_person(r, "veterinaria", {"shirt": Color(0.4, 0.6, 0.75), "coat": Color(0.97, 0.97, 0.97), "pants": Color(0.4, 0.6, 0.75), "hair": Color(0.55, 0.4, 0.25), "long_hair": true}, Vector3(-2.0, 0.06, 3.1), talk)
 	r.add_child(Shapes.wall(Vector3(2.4, 2.2, 0.5), Vector3(-4.5, 1.1, 4.6), Color(0.95, 0.95, 0.95)))  # armario
 	for i in 3:
 		r.add_child(Shapes.box(Vector3(2.2, 0.04, 0.3), Color(0.7, 0.85, 0.95), Vector3(-4.5, 0.6 + i * 0.6, 4.3)))
@@ -108,7 +117,7 @@ static func clinic(open: Callable) -> Node3D:
 # ---------------------------------------------------------------------
 # Peluquería canina
 # ---------------------------------------------------------------------
-static func grooming(open: Callable) -> Node3D:
+static func grooming(open: Callable, talk: Callable) -> Node3D:
 	var r := room(10.0, 8.0, 3.6, Color(1.0, 0.88, 0.92), Color(0.92, 0.92, 0.9), Color(0.6, 0.35, 0.45))
 	# Bañera.
 	r.add_child(Shapes.wall(Vector3(2.2, 0.9, 1.1), Vector3(-2.5, 0.45, 2.6), Color(0.95, 0.95, 0.97)))
@@ -120,7 +129,7 @@ static func grooming(open: Callable) -> Node3D:
 	r.add_child(Shapes.wall(Vector3(1.6, 0.85, 0.8), Vector3(2.3, 0.43, 2.4), Color(0.6, 0.6, 0.65)))
 	r.add_child(Shapes.box(Vector3(0.1, 1.6, 0.1), Color(0.3, 0.3, 0.3), Vector3(3.3, 1.65, 2.6)))
 	r.add_child(Shapes.box(Vector3(0.6, 0.25, 0.25), Color(0.9, 0.4, 0.55), Vector3(3.0, 2.4, 2.6)))
-	_interact(r, "Mesa de peluquería: baño y desparasitación", open.bind("peluqueria"), Vector3(2.3, 1, 1.5))
+	_person(r, "peluquera", {"shirt": Color(0.9, 0.45, 0.6), "vest": Color(0.25, 0.25, 0.3), "pants": Color(0.15, 0.15, 0.2), "hair": Color(0.7, 0.2, 0.25), "long_hair": true}, Vector3(1.0, 0.06, 2.9), talk)
 	# Mostrador.
 	r.add_child(Shapes.wall(Vector3(2.4, 1.05, 0.6), Vector3(2.8, 0.53, -2.4), Color(0.95, 0.8, 0.85)))
 	_interact(r, "Mostrador de la peluquería", open.bind("peluqueria"), Vector3(2.8, 1, -3.2))
@@ -134,7 +143,7 @@ static func grooming(open: Callable) -> Node3D:
 # ---------------------------------------------------------------------
 # Tienda de piensos y limpieza
 # ---------------------------------------------------------------------
-static func shop(open: Callable) -> Node3D:
+static func shop(open: Callable, talk: Callable) -> Node3D:
 	var r := room(12.0, 10.0, 4.0, Color(0.96, 0.92, 0.78), Color(0.75, 0.68, 0.55), Color(0.55, 0.3, 0.2))
 	var wood := Color(0.55, 0.4, 0.25)
 	# Estanterías con sacos y productos.
@@ -154,7 +163,7 @@ static func shop(open: Callable) -> Node3D:
 	r.add_child(Shapes.wall(Vector3(3.0, 1.05, 0.8), Vector3(3.6, 0.53, -2.6), wood))
 	r.add_child(Shapes.box(Vector3(0.5, 0.3, 0.4), Color(0.2, 0.2, 0.22), Vector3(4.3, 1.2, -2.6)))
 	_sign(r, "CAJA", Vector3(3.6, 2.3, -2.3))
-	_interact(r, "Mostrador: comprar pienso y productos", open.bind("tienda"), Vector3(3.6, 1, -3.4))
+	_person(r, "dependiente", {"shirt": Color(0.85, 0.85, 0.8), "vest": Color(0.2, 0.45, 0.25), "pants": Color(0.3, 0.25, 0.2), "hair": Color(0.45, 0.45, 0.45)}, Vector3(3.6, 0.06, -1.7), talk)
 	# Palé de sacos junto a la entrada.
 	for i in 4:
 		r.add_child(Shapes.box(Vector3(0.9, 0.3, 0.6), Color(0.85, 0.3, 0.2), Vector3(-4.5, 0.2 + i * 0.32, -3.4)))
@@ -164,19 +173,22 @@ static func shop(open: Callable) -> Node3D:
 # ---------------------------------------------------------------------
 # Ayuntamiento · Banco · SEPRONA
 # ---------------------------------------------------------------------
-static func town_hall(open: Callable) -> Node3D:
+static func town_hall(open: Callable, talk: Callable) -> Node3D:
 	var r := room(15.0, 11.0, 5.0, Color(0.92, 0.88, 0.8), Color(0.7, 0.68, 0.65), Color(0.45, 0.25, 0.2))
 	var desks := [
-		{"x": -4.5, "name": "BANCO", "color": Color(0.2, 0.35, 0.6), "prompt": "Ventanilla del banco: préstamo"},
-		{"x": 0.0, "name": "REGISTRO Y SUBVENCIONES", "color": Color(0.6, 0.2, 0.2), "prompt": "Registro: subvenciones e inspecciones"},
-		{"x": 4.5, "name": "SEPRONA", "color": Color(0.2, 0.4, 0.25), "prompt": "SEPRONA (Guardia Civil): denuncias"},
+		{"x": -4.5, "name": "BANCO", "color": Color(0.2, 0.35, 0.6), "who": "banco",
+			"look": {"shirt": Color(0.9, 0.92, 0.95), "vest": Color(0.15, 0.2, 0.35), "pants": Color(0.15, 0.2, 0.35), "hair": Color(0.1, 0.08, 0.06)}},
+		{"x": 0.0, "name": "REGISTRO Y SUBVENCIONES", "color": Color(0.6, 0.2, 0.2), "who": "registro",
+			"look": {"shirt": Color(0.6, 0.45, 0.6), "pants": Color(0.25, 0.25, 0.3), "hair": Color(0.3, 0.2, 0.15), "long_hair": true}},
+		{"x": 4.5, "name": "SEPRONA", "color": Color(0.2, 0.4, 0.25), "who": "seprona",
+			"look": {"shirt": Color(0.3, 0.38, 0.25), "pants": Color(0.3, 0.38, 0.25), "hair": Color(0.1, 0.08, 0.06), "cap": Color(0.25, 0.32, 0.2)}},
 	]
 	for dk in desks:
 		r.add_child(Shapes.wall(Vector3(3.2, 1.1, 0.8), Vector3(dk["x"], 0.55, 3.0), dk["color"]))
 		r.add_child(Shapes.box(Vector3(3.3, 0.06, 0.9), Color(0.85, 0.8, 0.7), Vector3(dk["x"], 1.13, 3.0)))
 		r.add_child(Shapes.wall(Vector3(3.2, 3.0, 0.1), Vector3(dk["x"], 1.5, 5.3), dk["color"].lightened(0.5)))
 		_sign(r, dk["name"], Vector3(dk["x"], 3.2, 5.2), 0.007)
-		_interact(r, dk["prompt"], open.bind("ayuntamiento"), Vector3(dk["x"], 1, 2.0), 1.7)
+		_person(r, dk["who"], dk["look"], Vector3(dk["x"], 0.06, 3.9), talk)
 	# Bancos de espera y bandera.
 	for x in [-4.0, 4.0]:
 		r.add_child(Shapes.wall(Vector3(2.4, 0.45, 0.6), Vector3(x, 0.23, -2.5), Color(0.5, 0.35, 0.22)))

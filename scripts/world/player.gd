@@ -22,6 +22,7 @@ var _carried_visual: Node3D
 
 
 func _ready() -> void:
+	add_to_group("player")
 	collision_layer = 2
 	collision_mask = 1
 	var col := CollisionShape3D.new()

@@ -38,7 +38,7 @@ El diseño completo está en [`docs/GDD.md`](docs/GDD.md).
 7. Haz **campañas** para conseguir socios, amplía el **terreno**, construye zonas, contrata **personal**, compra **vehículos** (bici con carro → gran furgoneta) y el **lector de chips** o el **rastreador GPS**.
 8. Cumple los requisitos de la **subvención municipal** y supera la inspección en el ayuntamiento.
 
-Todos los edificios tienen interior: en la clínica se habla en recepción o en la mesa de exploración; en la peluquería, en la bañera; en la tienda, en la caja; y en el ayuntamiento hay ventanillas de banco, registro y SEPRONA.
+Todos los edificios tienen interior y personas con las que hablar (E): Rocío en la recepción y la Dra. Carmen en la consulta de la clínica, Inma en la peluquería, Manolo en la tienda, y Antonio (banco), Pilar (registro) y el agente Ruiz (SEPRONA) en el ayuntamiento. Te cuentan cosas según tu situación y te dan acceso a sus servicios. En el refugio, tus voluntarios y empleados te avisan si falta pienso, si hay algún animal enfermo o si no cabéis.
 
 Si un animal **con chip** se escapa, verás su señal de forma intermitente (continua con el rastreador). **Sin chip**, se pierde.
 Si un animal con chip llega con **indicios de maltrato**, puedes denunciar al propietario en el SEPRONA.
@@ -53,6 +53,8 @@ scripts/world/world.gd     Pueblo, refugio que crece, animales en la calle, inte
 scripts/world/player.gd    Jugador en primera / tercera persona y vehículos
 scripts/world/interiors.gd   Interiores de los edificios (clínica, peluquería, tienda, ayuntamiento, caseta)
 scripts/world/animal_mesh.gd Modelo provisional de perros y gatos
+scripts/world/npc.gd       Personajes (modelo, animación, mirar al jugador)
+scripts/core/dialogues.gd  Qué dice cada personaje según la partida
 scripts/world/interactable.gd
 scripts/ui/ui.gd           Arranque, HUD, tablet y paneles de cada lugar
 scripts/util/shapes.gd     Geometría provisional

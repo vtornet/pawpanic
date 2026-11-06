@@ -116,6 +116,16 @@ func run(world: World, ui: GameUI) -> void:
 				await _frames(1)
 		ui.close_panel()
 
+	# --- Personajes: todos tienen algo que decir y su panel se abre ---
+	var npcs := get_tree().get_nodes_in_group("npc")
+	_check(npcs.size() >= 7, "debería haber personajes en los edificios y el refugio (%d)" % npcs.size())
+	for id in Dialogues.PEOPLE.keys() + ["staff_voluntario_0", "staff_cuidador_0"]:
+		var d := Dialogues.talk(id)
+		_check(d["text"] != "" and d["text"] != "...", "%s debería decir algo" % id)
+		ui.open_dialog(id)
+		await _frames(1)
+		ui.close_panel()
+
 	# --- Simulación larga: 200 días con decisiones sencillas ---
 	Game.s["money"] = 50000
 	for day in 200:

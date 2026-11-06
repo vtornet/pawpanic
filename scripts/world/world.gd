@@ -4,6 +4,7 @@ extends Node3D
 ## Se reconstruye a partir de Game cuando algo cambia.
 
 signal open_panel(kind: String)
+signal talk(npc_id: String)
 signal prompt_changed(text: String)
 signal message(text: String)
 
@@ -22,6 +23,8 @@ var _shelter: Node3D
 var _street_nodes := {}   # id -> Node3D
 var _shelter_sig := ""
 var _shelter_animals: Node3D
+var _staff_root: Node3D
+var _staff_sig := ""
 var _animals_sig := ""
 var _current: Interactable
 
@@ -35,6 +38,9 @@ func _ready() -> void:
 	_shelter_animals = Node3D.new()
 	_shelter_animals.name = "AnimalesRefugio"
 	add_child(_shelter_animals)
+	_staff_root = Node3D.new()
+	_staff_root.name = "Personal"
+	add_child(_staff_root)
 	_street = Node3D.new()
 	_street.name = "Calle"
 	add_child(_street)
@@ -47,6 +53,7 @@ func _ready() -> void:
 	Game.world_changed.connect(_sync)
 	Game.changed.connect(_sync_shelter)
 	Game.changed.connect(_sync_shelter_animals)
+	Game.changed.connect(_sync_staff)
 	_sync()
 
 
@@ -150,10 +157,10 @@ func _build_town() -> void:
 		var pos: Vector3 = pl["pos"]
 		var building: Node3D
 		match key:
-			"clinica": building = Interiors.clinic(open_panel.emit)
-			"peluqueria": building = Interiors.grooming(open_panel.emit)
-			"tienda": building = Interiors.shop(open_panel.emit)
-			"ayuntamiento": building = Interiors.town_hall(open_panel.emit)
+			"clinica": building = Interiors.clinic(open_panel.emit, talk.emit)
+			"peluqueria": building = Interiors.grooming(open_panel.emit, talk.emit)
+			"tienda": building = Interiors.shop(open_panel.emit, talk.emit)
+			"ayuntamiento": building = Interiors.town_hall(open_panel.emit, talk.emit)
 		building.name = key
 		# La puerta (pared -Z local) mira hacia la carretera central (x = 0).
 		building.rotation.y = PI / 2 if pos.x > 0 else -PI / 2
@@ -319,6 +326,52 @@ func _sync_shelter_animals() -> void:
 		info.position.y = 0.5
 		node.add_child(info)
 		_shelter_animals.add_child(node)
+
+
+# =====================================================================
+# Personal y voluntarios en el refugio
+# =====================================================================
+
+const STAFF_LOOKS := {
+	"voluntario": {"shirt": Color(0.95, 0.95, 0.95), "vest": Color(0.4, 0.8, 0.3), "pants": Color(0.25, 0.3, 0.45)},
+	"cuidador": {"shirt": Color(0.2, 0.55, 0.45), "pants": Color(0.2, 0.3, 0.3)},
+	"limpiador": {"shirt": Color(0.3, 0.5, 0.8), "pants": Color(0.3, 0.5, 0.8)},
+	"paseador": {"shirt": Color(0.95, 0.6, 0.2), "pants": Color(0.25, 0.25, 0.3), "cap": Color(0.95, 0.6, 0.2)},
+	"peluquero": {"shirt": Color(0.9, 0.45, 0.6), "pants": Color(0.2, 0.2, 0.25)},
+	"veterinario": {"shirt": Color(0.4, 0.6, 0.75), "coat": Color(0.97, 0.97, 0.97), "pants": Color(0.4, 0.6, 0.75)},
+}
+const STAFF_ROLE_NAMES := {"voluntario": "voluntario/a", "cuidador": "cuidador/a", "limpiador": "limpieza",
+	"paseador": "paseador/a", "peluquero": "peluquero/a", "veterinario": "veterinario/a"}
+
+
+func _sync_staff() -> void:
+	var sig := "%s|%s|%d" % [str(Game.s["staff"]), Game.s["land"], Game.s["tier"]]
+	if sig == _staff_sig:
+		return
+	_staff_sig = sig
+	for c in _staff_root.get_children():
+		c.queue_free()
+	if Game.s["tier"] == 0:
+		return
+	var half := Game.land_size() / 2.0
+	var spots := [Vector3(-3.5, 0.06, -4.5), Vector3(3.5, 0.06, -4.5), Vector3(-7.5, 0.06, -7.0), Vector3(7.5, 0.06, -7.0),
+		Vector3(-2.0, 0.06, -8.0), Vector3(2.0, 0.06, -8.0), Vector3(-half + 2.5, 0.06, -2.0), Vector3(half - 2.5, 0.06, -2.0)]
+	var i := 0
+	var hair := [Color(0.15, 0.1, 0.08), Color(0.55, 0.4, 0.25), Color(0.85, 0.7, 0.4), Color(0.3, 0.2, 0.15), Color(0.6, 0.6, 0.6)]
+	for role in STAFF_LOOKS:
+		for k in Game.staff_count(role):
+			if i >= spots.size():
+				return
+			var look: Dictionary = STAFF_LOOKS[role].duplicate()
+			look["hair"] = hair[(i * 3 + k) % hair.size()]
+			look["long_hair"] = (i + k) % 2 == 0
+			var nm: String = Dialogues.STAFF_NAMES[(i * 7 + 3) % Dialogues.STAFF_NAMES.size()]
+			var n := Npc.create("staff_%s_%d" % [role, k], nm, STAFF_ROLE_NAMES[role], look)
+			n.position = Game.s["land_pos"] + spots[i]
+			n.rotation.y = 0.0  # mirando hacia la entrada
+			n.talked.connect(talk.emit)
+			_staff_root.add_child(n)
+			i += 1
 
 
 # =====================================================================
