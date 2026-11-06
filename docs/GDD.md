@@ -254,6 +254,8 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 - [x] Eventos: ola de calor, incendio forestal, inundación, brote de parvovirus, camada abandonada, temporada de caza
 - [x] Cierre de día y de mes, guardado y carga
 - [x] Ampliaciones del refugio con interior: consulta y quirófano (servicios propios), zona de limpieza, cuarentena (los enfermos van allí), gatera (los gatos, también en el estante), caniles exteriores, patio (los perros enérgicos salen de 10:00 a 18:00) y almacén; cada profesional trabaja en su sala
+- [x] Animales vivos en el refugio: pasean por su canil, el patio o la gatera, se sientan y se tumban a dormir; los enérgicos se mueven más, los miedosos se quedan al fondo, los enfermos descansan y por la tarde duermen
+- [x] Personal trabajando: el cuidador recorre los caniles, el limpiador friega con su fregona, los voluntarios van y vienen, el paseador da vueltas por el patio y la veterinaria y el peluquero se mueven por su sala
 - [x] Paso del día: el sol sale, recorre el cielo y se pone (atardecer anaranjado), y las farolas se encienden por la tarde
 - [x] Pueblo con vida: vecinos que pasean y con los que se puede hablar (pistas sobre animales sueltos, algún donativo, comentarios según la reputación) y coches que circulan y frenan ante el jugador
 - [x] Dueños y devoluciones en persona: el dueño de un animal con chip pide cita, viene, se lo entregas (a veces con recompensa) y se va con él; si no le atiendes, vuelve otro día. Quien devuelve viene con el animal y explica por qué: lo recibes o le das consejos para que lo intente otra vez; si nadie le atiende, lo deja atado a la puerta
@@ -264,7 +266,7 @@ con reputación por los suelos. **"Victoria"**: no hay final; hay hitos y logros
 
 **Pendiente**
 - [ ] Más especies (gatos implementados de forma básica; conejos, granja)
-- [ ] Animales que se mueven por su zona (ahora están quietos en su sitio) y personal que hace sus tareas
+- [ ] Sonido: ladridos, maullidos, ambiente del pueblo, interfaz y música
 - [ ] Más variedad de conversaciones; seguimiento post-adopción (visitas o llamadas a las familias)
 - [ ] Modelos, animaciones y sonido
 - [ ] Combustible, moral del personal, turnos

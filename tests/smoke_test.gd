@@ -292,6 +292,21 @@ func run(world: World, ui: GameUI) -> void:
 	var cons: Vector3 = spot_of.call("consulta")
 	_check(not vet_node.is_empty() and vet_node[0].global_position.distance_to(cons) < 3.5, "el veterinario debería trabajar en la consulta")
 	_check(Game.can_do_own("vacunas") and Game.can_do_own("bano") and Game.can_do_own("esterilizar"), "los servicios propios deberían estar disponibles")
+	# Se mueven: animales por su zona y personal por su recorrido (a media mañana, que de noche duermen).
+	Game.s["minute"] = 11 * 60
+	Game.paused = false
+	var before_pos := {}
+	for n in world._shelter_animals.get_children():
+		before_pos[n] = n.global_position
+	var staff_before := {}
+	for n in world._staff_root.get_children():
+		staff_before[n] = n.global_position
+	await get_tree().create_timer(9.0).timeout
+	var moved := before_pos.keys().filter(func(n: Node3D) -> bool: return is_instance_valid(n) and n.global_position.distance_to(before_pos[n]) > 0.1)
+	var staff_moved := staff_before.keys().filter(func(n: Node3D) -> bool: return is_instance_valid(n) and n.global_position.distance_to(staff_before[n]) > 0.1)
+	_check(moved.size() >= 1, "los animales del refugio deberían moverse (%d de %d)" % [moved.size(), before_pos.size()])
+	_check(staff_moved.size() >= 1, "el personal debería moverse por sus tareas")
+	Game.paused = true
 	for kind in ["consulta", "limpieza"]:
 		ui.open_panel(kind)
 		await _frames(1)

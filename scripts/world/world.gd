@@ -24,6 +24,7 @@ var _shelter: Node3D
 var _street_nodes := {}   # id -> Node3D
 var _shelter_sig := ""
 var _shelter_animals: Node3D
+var _life: ShelterLife
 var _staff_root: Node3D
 var _staff_sig := ""
 var _visitors_root: Node3D
@@ -45,6 +46,9 @@ func _ready() -> void:
 	_staff_root = Node3D.new()
 	_staff_root.name = "Personal"
 	add_child(_staff_root)
+	_life = ShelterLife.new()
+	_life.name = "VidaRefugio"
+	add_child(_life)
 	_visitors_root = Node3D.new()
 	_visitors_root.name = "Visitas"
 	add_child(_visitors_root)
@@ -288,12 +292,29 @@ func _patio_time() -> bool:
 	return h >= 10 and h < 18
 
 
+## Plazas de una ampliación, cada una con su zona para moverse: {pos, center, half} en coordenadas del terreno.
 func _spots_of(id: String) -> Array:
 	var out := []
 	for b in _building_spots:
-		if b["id"] == id:
-			for sp in Interiors.expansion_spots(id):
-				out.append(b["pos"] + sp)
+		if b["id"] != id:
+			continue
+		var bp: Vector3 = b["pos"]
+		for sp in Interiors.expansion_spots(id):
+			var z := {"pos": bp + sp, "center": bp + sp, "half": Vector2(0.4, 0.35)}
+			match id:
+				"gatera":
+					if sp.y > 0.5:
+						z["half"] = Vector2.ZERO  # en el estante: no se mueve
+					else:
+						z["center"] = bp + Vector3(0, 0.06, 0.2)
+						z["half"] = Vector2(1.7, 1.2)
+				"patio":
+					z["center"] = bp + Vector3(0, 0.06, 0)
+					z["half"] = Vector2(1.9, 1.7)
+				"caniles":
+					z["center"] = bp + Vector3(sp.x, 0.06, 0.3)
+					z["half"] = Vector2(0.35, 1.4)
+			out.append(z)
 	return out
 
 
@@ -306,6 +327,7 @@ func _sync_shelter_animals() -> void:
 	_animals_sig = sig
 	for c in _shelter_animals.get_children():
 		c.queue_free()
+	_life.clear_animals()
 	if Game.s["tier"] == 0:
 		return
 	# Cada animal va a su sitio: enfermos a cuarentena, gatos a la gatera, perros enérgicos
@@ -315,36 +337,40 @@ func _sync_shelter_animals() -> void:
 	var patio := _spots_of("patio") if _patio_time() else []
 	var kennels: Array = []
 	for i in 4:
-		kennels.append(HOUSE_POS + Interiors.kennel_pos(i))
+		var kp := HOUSE_POS + Interiors.kennel_pos(i)
+		kennels.append({"pos": kp, "center": kp + Vector3(0, 0, 0.1), "half": Vector2(0.8, 0.65)})
 	kennels.append_array(_spots_of("caniles"))
 	var half := Game.land_size() / 2.0
+	var base: Vector3 = Game.s["land_pos"]
 	for a in list:
-		var p := Vector3.INF
+		var z: Dictionary = {}
 		if (a["sick"] or a["injured"]) and not quarantine.is_empty():
-			p = quarantine.pop_front()
+			z = quarantine.pop_front()
 		elif a["species"] == "gato" and not cattery.is_empty():
-			p = cattery.pop_front()
+			z = cattery.pop_front()
 		elif a["energy"] == "enérgico" and a["species"] == "perro" and not patio.is_empty():
-			p = patio.pop_front()
+			z = patio.pop_front()
 		elif not kennels.is_empty():
-			p = kennels.pop_front()
+			z = kennels.pop_front()
 		elif a["species"] == "gato" and not cattery.is_empty():
-			p = cattery.pop_front()
-		if p == Vector3.INF:
-			# Sobreocupación: animales sueltos por el patio.
+			z = cattery.pop_front()
+		if z.is_empty():
+			# Sobreocupación: animales sueltos por el patio de entrada.
 			var r := RandomNumberGenerator.new()
 			r.seed = a["id"]
-			p = Vector3(r.randf_range(-4.5, 4.5), 0.06, r.randf_range(-half + 2, -2))
+			var yard := Vector3(0, 0.06, -half + 6.0)
+			z = {"pos": yard + Vector3(r.randf_range(-3.5, 3.5), 0, r.randf_range(-2, 2)), "center": yard, "half": Vector2(4.0, 2.5)}
 		var node := AnimalMesh.build(a)
 		node.set_meta("id", a["id"])
-		node.position = Game.s["land_pos"] + p
+		_shelter_animals.add_child(node)
+		node.global_position = base + z["pos"]
 		node.rotation.y = PI  # mirando hacia la entrada
 		var info := Interactable.create("%s · %s %s · salud %d · %s" % [a["name"], a["species"], a["size"], a["health"],
 			"listo para adopción" if Game.is_adoptable(a) else "falta: " + ", ".join(Game.missing_for_adoption(a))],
 			open_panel.emit.bind("refugio"), 1.3)
 		info.position.y = 0.5
 		node.add_child(info)
-		_shelter_animals.add_child(node)
+		_life.add_animal(node, a, base + z["center"], z["half"])
 
 
 # =====================================================================
@@ -370,6 +396,7 @@ func _sync_staff() -> void:
 	_staff_sig = sig
 	for c in _staff_root.get_children():
 		c.queue_free()
+	_life.clear_workers()
 	if Game.s["tier"] == 0:
 		return
 	var half := Game.land_size() / 2.0
@@ -399,7 +426,46 @@ func _sync_staff() -> void:
 						break
 			n.talked.connect(talk.emit)
 			_staff_root.add_child(n)
+			_life.add_worker(n, _work_route(role, k, n.position))
+			if role == "limpiador":  # con su fregona
+				var mop := Shapes.box(Vector3(0.05, 1.3, 0.05), Color(0.8, 0.7, 0.2), Vector3(0.35, 0.65, -0.3))
+				mop.rotation.x = 0.3
+				n.add_child(mop)
+				n.add_child(Shapes.box(Vector3(0.3, 0.08, 0.15), Color(0.9, 0.9, 0.9), Vector3(0.35, 0.04, -0.5)))
 			i += 1
+
+
+## Recorrido de trabajo de cada empleado (posiciones globales).
+func _work_route(role: String, k: int, start: Vector3) -> Array:
+	var base: Vector3 = Game.s["land_pos"]
+	var off := Vector3(0, 0, -k * 0.8)
+	var route: Array = []
+	match role:
+		"voluntario":
+			route = [Vector3(-4, 0.06, -3), Vector3(4, 0.06, -3), Vector3(4, 0.06, -7), Vector3(-4, 0.06, -7)]
+			if k % 2 == 1:
+				route.reverse()
+		"cuidador":
+			# Pasillo de los caniles de la caseta, con parada en cada uno.
+			for x in [-3.8, -1.3, 1.3, 3.8]:
+				route.append(HOUSE_POS + Vector3(x, 0.06, 0.6))
+			route.append(Vector3(0, 0.06, -2.5))
+		"limpiador":
+			route = [Vector3(-4.5, 0.06, -2.5), Vector3(-4.5, 0.06, -9), Vector3(4.5, 0.06, -9), Vector3(4.5, 0.06, -2.5)]
+		"paseador":
+			var pz := _spots_of("patio")
+			if not pz.is_empty():
+				var c: Vector3 = pz[0]["center"]
+				route = [c + Vector3(-1.8, 0, -1.6), c + Vector3(1.8, 0, -1.6), c + Vector3(1.8, 0, 1.5), c + Vector3(-1.8, 0, 1.5)]
+			else:
+				route = [Vector3(-3, 0.06, -5), Vector3(3, 0.06, -5)]
+		"veterinario", "peluquero":
+			# Se mueven dentro de su sala entre dos puntos.
+			return [start, start + Vector3(-1.2, 0, -0.9), start]
+	var out: Array = []
+	for p in route:
+		out.append(base + p + off)
+	return out
 
 
 # =====================================================================
@@ -593,8 +659,7 @@ func _process(delta: float) -> void:
 	var t := Time.get_ticks_msec() * 0.001
 	for id in _street_nodes:
 		AnimalMesh.animate(_street_nodes[id], t, id)
-	for n in _shelter_animals.get_children():
-		AnimalMesh.animate(n, t, n.get_meta("id", 0))
+	# (los del refugio los mueve ShelterLife)
 	_update_interaction()
 
 
