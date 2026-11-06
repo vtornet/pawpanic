@@ -12,7 +12,7 @@ El diseño completo está en [`docs/GDD.md`](docs/GDD.md).
 
 ## Cómo abrirlo
 
-1. Instala **Godot 4.6** (versión estándar): https://godotengine.org/download
+1. Instala **Godot 4.7** (versión estándar): https://godotengine.org/download
 2. Godot → *Importar* → elige `project.godot` → *Importar y editar*.
 3. Pulsa **F5**.
 
